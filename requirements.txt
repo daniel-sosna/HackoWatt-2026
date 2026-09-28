@@ -1,3 +1,4 @@
+# Supported runtime ranges. Use requirements-tested.txt for reproducible checks.
 numpy>=1.26,<3
 pandas>=2.2,<4
 tzdata>=2025.1

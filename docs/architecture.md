@@ -27,7 +27,15 @@ components such as model training, calibration, tariff analysis or API import.
 
 From the project root:
 
-```powershell
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Use `requirements.txt` for supported dependency ranges. Use `requirements-tested.txt` when reproducing the exact versions used by the retained validation checks.
+
+```bash
 python main.py generate
 python main.py dashboard
 python main.py forecast
@@ -37,7 +45,7 @@ python main.py forecast-dashboard
 With editable installation, the same commands use `hackowatt` instead of
 `python main.py`:
 
-```powershell
+```bash
 pip install -e .
 hackowatt generate --config config/manual_example.json --output results/manual
 ```
