@@ -16,7 +16,8 @@ The command creates an independent `results/model_benchmark/` directory containi
 | `test_model_dataset.csv` | The 168-hour May 2025 hold-out copy, retaining targets for evaluation and observed lag values for inspection. |
 | `feature_manifest.json` | Feature list, target list, training boundary, forecast start, and lag policy. |
 | `occupancy_predictions.csv`, `occupancy_metrics.csv` | Actual and predicted occupancy, with 24/72/168-hour metrics. |
-| `load_predictions.csv`, `load_metrics.csv` | Actual and predicted whole-home load, with 24/72/168-hour metrics. |
+| `load_predictions.csv`, `load_metrics.csv` | Actual and predicted whole-home load, with 24/72/168-hour metrics. The modular rows also show base, behaviour, space-heating, boiler, predicted draw, and tank-temperature estimates. |
+| `hot_water_draw_predictions.csv` | Predicted hot-water event probability, threshold, litre draw, simulated tank temperature, and boiler-energy comparison for each algorithm. |
 | `models/` | Pickled fitted occupancy, direct-load, and modular component models. |
 | `occupancy_forecast_24h.png`, `occupancy_forecast_72h.png`, `occupancy_forecast_168h.png` | Separate occupancy comparison charts for each forecast horizon. |
 | `load_forecast_24h.png`, `load_forecast_72h.png`, `load_forecast_168h.png` | Separate load comparison charts for each forecast horizon. |
@@ -30,15 +31,17 @@ The prepared data explicitly includes month number, weekday, hour, day of year, 
 
 ## Models and forecast policy
 
-The benchmark compares six recursive forecasts:
+The benchmark compares six forecasts with Random Forest, XGBoost, and CatBoost:
 
-- Direct total-load model with Random Forest, XGBoost, and CatBoost.
-- Modular base, behaviour, and thermal models with Random Forest, XGBoost, and CatBoost; their predictions are summed.
+- **Direct residual load:** the model predicts a correction to the observed total load at the same local hour one week earlier. This retains the household's weekly routine while allowing weather and calendar features to correct it.
+- **Modular physical boiler:** base load and resident behaviour use the same weekly-residual method. Space heating is forecast directly from weather, calendar, and predicted occupancy, so a warm week does not inherit heating from a cold prior week. Hot-water use is forecast as an event probability plus conditional litre volume, using only the observed equivalent hour one week earlier as historical input. A physical tank/thermostat simulation then converts the predicted draw into boiler electricity.
 
 Each forecast begins at the first hour of May 2025 and runs for at most 168 hours. At every later forecast hour, load lags and rolling means are calculated from earlier model predictions, never from future actual demand. The CSV's observed lag columns are retained for transparent data inspection only.
+
+The boiler simulation starts from the tank temperature and heater state observed immediately before forecast issue. It does not receive future observed tank temperature, hot-water draw, or occupancy. Occupancy is always supplied by the separate occupancy forecast.
 
 To forecast from another local start time:
 
 ```powershell
-python main.py model-benchmark --input results/manual/hourly.csv --output results/manual_benchmark --forecast-start-local "2025-05-01 00:00:00"
+python main.py model-benchmark --input results/manual/hourly.csv --output results/manual_benchmark --forecast-start-local "2025-04-10 00:00:00"
 ```

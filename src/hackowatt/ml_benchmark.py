@@ -112,7 +112,9 @@ def component_targets(df: pd.DataFrame) -> pd.DataFrame:
     targets['occupancy_mean'] = _numeric(df['occupancy_mean'])
     targets['base_kwh'] = df[BASE_COLUMNS].sum(axis=1).astype(float)
     targets['behaviour_kwh'] = df[behaviour_columns].sum(axis=1).astype(float)
-    targets['thermal_kwh'] = df[THERMAL_COLUMNS].sum(axis=1).astype(float)
+    targets['space_heating_kwh'] = _numeric(df['space_heating_kwh'])
+    targets['water_heater_kwh'] = _numeric(df['water_heater_kwh'])
+    targets['hot_water_mixed_l'] = _numeric(df['hot_water_mixed_l'])
     return targets
 
 
@@ -152,7 +154,9 @@ def prepare_training_data(hourly_path: Path, output_dir: Path,
     prepared['target_total_kwh'] = targets['total_kwh'].to_numpy()
     prepared['target_base_kwh'] = targets['base_kwh'].to_numpy()
     prepared['target_behaviour_kwh'] = targets['behaviour_kwh'].to_numpy()
-    prepared['target_thermal_kwh'] = targets['thermal_kwh'].to_numpy()
+    prepared['target_space_heating_kwh'] = targets['space_heating_kwh'].to_numpy()
+    prepared['target_water_heater_kwh'] = targets['water_heater_kwh'].to_numpy()
+    prepared['target_hot_water_mixed_l'] = targets['hot_water_mixed_l'].to_numpy()
     positions = np.arange(len(df))
     prepared['split'] = np.where(positions < cutoff, 'train', np.where(positions < cutoff+horizon_hours, 'test', 'unused'))
     # The first 168 rows have insufficient energy history for any load model.
@@ -224,6 +228,118 @@ def _fit_regressor(name: str, x: np.ndarray, y: np.ndarray):
     model = _new_regressor(name)
     model.fit(x, y)
     return model
+
+
+def _new_classifier(name: str):
+    if name == 'random_forest':
+        from sklearn.ensemble import RandomForestClassifier
+        return RandomForestClassifier(
+            n_estimators=80, max_depth=12, min_samples_leaf=6, class_weight='balanced',
+            n_jobs=1, random_state=20260928,
+        )
+    if name == 'xgboost':
+        from xgboost import XGBClassifier
+        return XGBClassifier(
+            n_estimators=100, max_depth=6, learning_rate=0.08, subsample=0.85,
+            colsample_bytree=0.9, objective='binary:logistic', eval_metric='logloss',
+            n_jobs=4, random_state=20260928, tree_method='hist', verbosity=0,
+        )
+    if name == 'catboost':
+        from catboost import CatBoostClassifier
+        return CatBoostClassifier(
+            iterations=100, depth=6, learning_rate=0.08, loss_function='Logloss',
+            random_seed=20260928, verbose=False, allow_writing_files=False, thread_count=4,
+        )
+    raise ValueError(f'Unknown classifier {name}')
+
+
+def _residual_training_matrix(base: pd.DataFrame, occupancy_hat: np.ndarray,
+                              target: np.ndarray, end: int) -> tuple[np.ndarray, np.ndarray]:
+    rows = np.arange(168, end)
+    return _train_matrix(base, occupancy_hat, target, end), target[rows]-target[rows-168]
+
+
+def _recursive_residual_forecast(model, base: pd.DataFrame, occupancy_hat: np.ndarray,
+                                 target_history: np.ndarray, start: int, end: int) -> np.ndarray:
+    history = list(np.asarray(target_history[:start], dtype=float))
+    prediction = []
+    for row in range(start, end):
+        x = np.r_[base.iloc[row].to_numpy(float), occupancy_hat[row], _lag_vector(history)]
+        value = max(0.0, float(history[-168] + model.predict(np.asarray([x]))[0]))
+        prediction.append(value)
+        history.append(value)
+    return np.asarray(prediction)
+
+
+def _forecast_hot_water_draws(algorithm: str, base: pd.DataFrame, occupancy_hat: np.ndarray,
+                              draws: np.ndarray, cutoff: int, end: int):
+    """Forecast draw probability and conditional litre volume without future state."""
+    rows = np.arange(168, cutoff)
+    # The same hour one week earlier is observed history throughout a maximum
+    # 168-hour forecast. It preserves regular shower and morning-routine timing.
+    x_train = np.column_stack([
+        base.iloc[rows].to_numpy(float), occupancy_hat[rows], draws[rows-168],
+    ])
+    x_future = np.column_stack([
+        base.iloc[cutoff:end].to_numpy(float), occupancy_hat[cutoff:end],
+        draws[cutoff-168:end-168],
+    ])
+    event = draws[rows] > 0.01
+    classifier = _new_classifier(algorithm)
+    classifier.fit(x_train, event.astype(int))
+    probability = classifier.predict_proba(x_future)[:, 1]
+    training_probability = classifier.predict_proba(x_train)[:, 1]
+    threshold = float(np.quantile(training_probability, 1-event.mean()))
+    volume_model = _fit_regressor(algorithm, x_train[event], draws[rows][event])
+    conditional_volume = np.maximum(0.0, volume_model.predict(x_future))
+    draw_hat = (probability >= threshold).astype(float)*conditional_volume
+    return draw_hat, probability, threshold, classifier, volume_model
+
+
+def _simulate_boiler_from_draw_forecast(draw_l: np.ndarray, df: pd.DataFrame,
+                                        cutoff: int, house: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Simulate the boiler from observed pre-forecast tank state and predicted draws."""
+    c_tank = house['tank_volume_l']*0.001163
+    ua = house['tank_loss_w_k']/1000
+    setpoint, deadband = house['tank_setpoint_c'], house['tank_deadband_c']
+    use_temperature, power = house['water_use_temperature_c'], house['boiler_power_kw']
+    tank = float(df['tank_c'].iloc[cutoff-1])
+    room_temperature = float(df['indoor_c'].iloc[cutoff-1])
+    boiler_on = bool(float(df['water_heater_kwh'].iloc[cutoff-1]) > power*0.05)
+    local = df.index[cutoff:cutoff+len(draw_l)].tz_convert('Europe/Warsaw')
+    mains = 10+5*np.sin(2*np.pi*(local.dayofyear.to_numpy()-120)/365.25)
+    energy, tank_hat = np.zeros(len(draw_l)), np.zeros(len(draw_l))
+    dt = 1/60
+    for hour, litres in enumerate(draw_l):
+        delivered_per_minute = max(0.0, float(litres))/60
+        for _ in range(60):
+            required = max(0.0, use_temperature-mains[hour])
+            demand = delivered_per_minute*0.001163*required
+            above = max(0.0, (tank-use_temperature)*c_tank)
+            if demand <= above:
+                tank -= demand/c_tank
+            else:
+                remaining = max(0.0, delivered_per_minute-above/max(0.001163*required, 1e-9))
+                tank = min(tank, use_temperature)
+                tank = mains[hour]+(tank-mains[hour])*np.exp(-remaining/house['tank_volume_l'])
+            if tank < setpoint-deadband:
+                boiler_on = True
+            elif tank >= setpoint:
+                boiler_on = False
+            minute_power = power if boiler_on else 0.0
+            decay = np.exp(-ua*dt/c_tank)
+            equilibrium = room_temperature+minute_power/ua
+            tank = equilibrium+(tank-equilibrium)*decay
+            energy[hour] += minute_power*dt
+        tank_hat[hour] = tank
+    return energy, tank_hat
+
+
+def _load_house_parameters(hourly_path: Path) -> dict:
+    path = hourly_path.parent/'resolved_house.json'
+    if not path.exists():
+        raise FileNotFoundError(f'Boiler simulation needs realised house parameters: {path}')
+    return json.loads(path.read_text(encoding='utf-8'))
 def _lag_vector(history: list[float]) -> list[float]:
     if len(history) < 168:
         raise ValueError('168 history values are required')
@@ -344,13 +460,16 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
 def run_model_benchmark(hourly_path: Path, output_dir: Path,
                         forecast_start_local: str = '2025-05-01 00:00:00',
                         horizon_hours: int = 168) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Prepare data, forecast occupancy, and compare six bounded forecasts."""
+    """Prepare data and compare residual direct and physical-boiler forecasts."""
     prepared = prepare_training_data(hourly_path, output_dir, forecast_start_local, horizon_hours)
+    df = load_hourly(hourly_path)
+    house = _load_house_parameters(hourly_path)
     base, targets, cutoff = prepared.base_features, prepared.targets, prepared.cutoff
     end = cutoff + len(prepared.test)
     reported_horizons = [h for h in (24, 72, 168) if h <= horizon_hours]
     models_dir = output_dir/'models'; models_dir.mkdir(exist_ok=True)
     occupancy_rows: list[dict] = []
+    water_draw_rows: list[dict] = []
     load_rows: list[dict] = []
     occupancy_metric_rows: list[dict] = []
     load_metric_rows: list[dict] = []
@@ -374,25 +493,40 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
                 'occupancy_hat': occupancy_test[pos],
             })
 
-        direct_x = _train_matrix(base, occupancy_hat, actual_total, cutoff)
-        direct_model = _fit_regressor(algorithm, direct_x, actual_total[168:cutoff])
+        direct_x, direct_y = _residual_training_matrix(base, occupancy_hat, actual_total, cutoff)
+        direct_model = _fit_regressor(algorithm, direct_x, direct_y)
         _save_model(models_dir/f'direct_{algorithm}.pkl', direct_model)
-        direct_hat = _recursive_forecast(direct_model, base, occupancy_hat, actual_total, cutoff, end)
+        direct_hat = _recursive_residual_forecast(direct_model, base, occupancy_hat, actual_total, cutoff, end)
         direct_id = f'direct_{algorithm}'
         for horizon in reported_horizons:
-            load_metric_rows.append({'model_id': direct_id, 'architecture': 'direct', 'algorithm': algorithm, 'horizon_hours': horizon,
+            load_metric_rows.append({'model_id': direct_id, 'architecture': 'direct_residual', 'algorithm': algorithm, 'horizon_hours': horizon,
                                      **_regression_metrics(actual_total[cutoff:cutoff+horizon], direct_hat[:horizon])})
 
         component_hats: dict[str, np.ndarray] = {}
-        for component in ('base_kwh', 'behaviour_kwh', 'thermal_kwh'):
+        for component in ('base_kwh', 'behaviour_kwh'):
             target = targets[component].to_numpy(float)
-            model = _fit_regressor(algorithm, _train_matrix(base, occupancy_hat, target, cutoff), target[168:cutoff])
+            x, y = _residual_training_matrix(base, occupancy_hat, target, cutoff)
+            model = _fit_regressor(algorithm, x, y)
             _save_model(models_dir/f'modular_{component}_{algorithm}.pkl', model)
-            component_hats[component] = _recursive_forecast(model, base, occupancy_hat, target, cutoff, end)
+            component_hats[component] = _recursive_residual_forecast(model, base, occupancy_hat, target, cutoff, end)
+        # Heating responds to the weather regime itself. A weekly energy baseline
+        # is unsafe during spring/fall changes, e.g. a cold prior week followed
+        # by a warm week with no heating demand.
+        heating_target = targets['space_heating_kwh'].to_numpy(float)
+        heating_x_train = np.column_stack([base.iloc[:cutoff].to_numpy(float), occupancy_hat[:cutoff]])
+        heating_x_future = np.column_stack([base.iloc[cutoff:end].to_numpy(float), occupancy_hat[cutoff:end]])
+        heating_model = _fit_regressor(algorithm, heating_x_train, heating_target[:cutoff])
+        _save_model(models_dir/f'modular_space_heating_kwh_{algorithm}.pkl', heating_model)
+        component_hats['space_heating_kwh'] = np.maximum(0.0, heating_model.predict(heating_x_future))
+        draw_hat, event_probability, event_threshold, event_model, volume_model = _forecast_hot_water_draws(
+            algorithm, base, occupancy_hat, targets['hot_water_mixed_l'].to_numpy(float), cutoff, end)
+        _save_model(models_dir/f'hot_water_event_{algorithm}.pkl', event_model)
+        _save_model(models_dir/f'hot_water_volume_{algorithm}.pkl', volume_model)
+        component_hats['water_heater_kwh'], tank_hat = _simulate_boiler_from_draw_forecast(draw_hat, df, cutoff, house)
         modular_hat = sum(component_hats.values())
         modular_id = f'modular_{algorithm}'
         for horizon in reported_horizons:
-            load_metric_rows.append({'model_id': modular_id, 'architecture': 'modular', 'algorithm': algorithm, 'horizon_hours': horizon,
+            load_metric_rows.append({'model_id': modular_id, 'architecture': 'modular_physical_boiler', 'algorithm': algorithm, 'horizon_hours': horizon,
                                      **_regression_metrics(actual_total[cutoff:cutoff+horizon], modular_hat[:horizon])})
 
         for pos, row in enumerate(range(cutoff, end)):
@@ -402,17 +536,34 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
                 'actual_total_kwh': actual_total[row],
             }
             load_rows.append({**common, 'model_id': direct_id, 'load_hat': direct_hat[pos],
-                              'base_hat': np.nan, 'behaviour_hat': np.nan, 'thermal_hat': np.nan})
+                              'base_hat': np.nan, 'behaviour_hat': np.nan, 'space_heating_hat': np.nan,
+                              'water_heater_hat': np.nan, 'water_draw_hat_l': np.nan, 'tank_hat_c': np.nan})
             load_rows.append({**common, 'model_id': modular_id, 'load_hat': modular_hat[pos],
                               'base_hat': component_hats['base_kwh'][pos],
                               'behaviour_hat': component_hats['behaviour_kwh'][pos],
-                              'thermal_hat': component_hats['thermal_kwh'][pos]})
+                              'space_heating_hat': component_hats['space_heating_kwh'][pos],
+                              'water_heater_hat': component_hats['water_heater_kwh'][pos],
+                              'water_draw_hat_l': draw_hat[pos], 'tank_hat_c': tank_hat[pos]})
+            water_draw_rows.append({
+                'timestamp_utc': base.index[row].isoformat(),
+                'timestamp_local': base.index[row].tz_convert('Europe/Warsaw').isoformat(),
+                'model_id': algorithm,
+                'actual_hot_water_mixed_l': targets['hot_water_mixed_l'].iloc[row],
+                'event_probability': event_probability[pos],
+                'event_threshold': event_threshold,
+                'hot_water_draw_hat_l': draw_hat[pos],
+                'tank_hat_c': tank_hat[pos],
+                'actual_water_heater_kwh': targets['water_heater_kwh'].iloc[row],
+                'water_heater_hat_kwh': component_hats['water_heater_kwh'][pos],
+            })
 
     occupancy_predictions = pd.DataFrame(occupancy_rows)
+    water_draw_predictions = pd.DataFrame(water_draw_rows)
     load_predictions = pd.DataFrame(load_rows)
     occupancy_metrics = pd.DataFrame(occupancy_metric_rows)
     load_metrics = pd.DataFrame(load_metric_rows).sort_values(['horizon_hours', 'architecture', 'mae']).reset_index(drop=True)
     occupancy_predictions.to_csv(output_dir/'occupancy_predictions.csv', index=False, float_format='%.6f')
+    water_draw_predictions.to_csv(output_dir/'hot_water_draw_predictions.csv', index=False, float_format='%.6f')
     load_predictions.to_csv(output_dir/'load_predictions.csv', index=False, float_format='%.6f')
     occupancy_metrics.to_csv(output_dir/'occupancy_metrics.csv', index=False, float_format='%.6f')
     load_metrics.to_csv(output_dir/'load_metrics.csv', index=False, float_format='%.6f')
@@ -420,13 +571,16 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
     spec = {
         **prepared.manifest,
         'occupancy_models': list(MODEL_NAMES),
-        'load_models': [f'{architecture}_{algorithm}' for architecture in ('direct', 'modular') for algorithm in MODEL_NAMES],
+        'load_models': [f'{architecture}_{algorithm}' for architecture in ('direct_residual', 'modular_physical_boiler') for algorithm in MODEL_NAMES],
         'load_features': list(base.columns) + ['occupancy_hat'] + list(LAG_NAMES),
+        'direct_model_rule': 'Predict the correction to the observed same hour one week earlier, then add that weekly baseline.',
+        'modular_rule': 'Base and behaviour are weekly-residual models. Space heating is a direct weather-response model. The boiler is simulated from thresholded hot-water event probability/volume, the observed same hour one week earlier, and the observed tank state before forecast issue.',
+        'boiler_initial_state_rule': 'Uses only tank_c and water_heater_kwh observed at forecast issue; no future tank state, draw, or occupancy is used.',
         'recursive_test_policy': 'At every forecast hour, load lags and rolling means are calculated from earlier predictions, never later actual demand.',
         'forecast_start_local': prepared.manifest['forecast_start_local'],
         'max_forecast_horizon_hours': horizon_hours,
         'reported_horizons_hours': reported_horizons,
-        'modular_targets': ['base_kwh', 'behaviour_kwh', 'thermal_kwh'],
+        'modular_targets': ['base_kwh', 'behaviour_kwh', 'space_heating_kwh', 'hot_water_mixed_l -> physical water_heater_kwh'],
     }
     (output_dir/'benchmark_spec.json').write_text(json.dumps(spec, indent=2), encoding='utf-8')
     return occupancy_metrics, load_metrics, spec
