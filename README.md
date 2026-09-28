@@ -12,6 +12,8 @@
 ```powershell
 python generate.py
 python visualize.py
+python forecast.py
+python visualize_forecasts.py
 python -m unittest discover -s tests -v
 ```
 
@@ -59,6 +61,10 @@ python visualize.py --input results/manual
 | `resolved_house.json`, `run_config.json` | Фактические параметры дома и конфигурация запуска |
 
 В `hourly.csv` суффикс `_kwh` означает энергию за час, `_kw` — мощность. `mean_kw` численно равен `total_kwh` только потому, что интервалы имеют длительность один физический час. `peak_1min_kw` — максимум минутной мощности. `hot_water_unmet_kwh` — неудовлетворённая тепловая потребность, она не входит в потреблённое электричество. `thermal_residual_kwh` — численная невязка, также не нагрузка.
+
+## Forecasting
+
+`forecast.py` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both produce recursive forecasts for 24 hours, 3 days and 7 days; they are compared with a weekly seasonal-naive baseline. `visualize_forecasts.py` makes an offline comparison dashboard in `results/forecast/forecast_dashboard.html`. Detailed method, leakage policy and deployment inputs: `docs/forecast_models_ru.md`.
 
 ## Источники и время
 
