@@ -10,13 +10,14 @@ from hackowatt.ml_benchmark import LAG_NAMES, prepare_training_data
 
 
 class ModelBenchmarkPreparationTests(unittest.TestCase):
-    def test_preparation_writes_separate_chronological_copies(self):
+    def test_preparation_writes_separate_bounded_forecast_copies(self):
         source = ROOT / 'results/default/hourly.csv'
         source_bytes = source.read_bytes()
         with tempfile.TemporaryDirectory() as directory:
-            prepared = prepare_training_data(source, Path(directory), test_days=2)
-            self.assertEqual(len(prepared.test), 48)
-            self.assertEqual(len(prepared.train) + 168 + len(prepared.test), prepared.manifest['rows_source'])
+            prepared = prepare_training_data(source, Path(directory))
+            self.assertEqual(len(prepared.test), 168)
+            self.assertEqual(prepared.manifest['forecast_start_local'], '2025-05-01T00:00:00+02:00')
+            self.assertEqual(prepared.manifest['reported_horizons_hours'], [24, 72, 168])
             self.assertTrue((Path(directory)/'train_model_dataset.csv').exists())
             self.assertTrue((Path(directory)/'test_model_dataset.csv').exists())
             self.assertTrue((Path(directory)/'feature_manifest.json').exists())

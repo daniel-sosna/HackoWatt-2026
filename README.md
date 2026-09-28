@@ -74,7 +74,8 @@ Use the new end-to-end benchmark to create separate chronological training and t
 python main.py model-benchmark
 ```
 
-Outputs are written to `results/model_benchmark/`. The original hourly data is never changed. See `docs/model_training.md` for the feature policy, files, and recursive test protocol.
+Outputs are written to `results/model_benchmark/`. Training ends before 1 May 2025 in Polish local time; forecasts are evaluated at 24, 72, and 168 hours from the start of May. The original hourly data is never changed. See `docs/model_training.md` for the feature policy, files, and recursive test protocol.
+
 ## Sources and time handling
 
 Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.

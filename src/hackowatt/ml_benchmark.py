@@ -127,14 +127,24 @@ def lag_frame(values: pd.Series) -> pd.DataFrame:
     }, index=values.index)
 
 
-def prepare_training_data(hourly_path: Path, output_dir: Path, test_days: int = 90) -> PreparedData:
-    """Create saved chronological data copies without changing the source CSV."""
+def prepare_training_data(hourly_path: Path, output_dir: Path,
+                          forecast_start_local: str = '2025-05-01 00:00:00',
+                          horizon_hours: int = 168) -> PreparedData:
+    """Create separate training/test copies for one bounded forecast window."""
+    if horizon_hours not in (24, 72, 168):
+        raise ValueError('horizon_hours must be one of 24, 72, or 168')
     df = load_hourly(hourly_path)
     base = make_base_features(df)
     targets = component_targets(df)
-    cutoff = len(df)-test_days*24
-    if cutoff <= 168 or len(df)-cutoff < 24:
-        raise ValueError('Need 168 hours of training history and at least 24 test hours')
+    local_start = pd.Timestamp(forecast_start_local)
+    if local_start.tzinfo is None:
+        local_start = local_start.tz_localize('Europe/Warsaw')
+    else:
+        local_start = local_start.tz_convert('Europe/Warsaw')
+    start_utc = local_start.tz_convert('UTC')
+    cutoff = int(df.index.get_indexer([start_utc])[0])
+    if cutoff < 168 or cutoff + horizon_hours > len(df):
+        raise ValueError('Forecast start/horizon must leave 168 training hours and fit within hourly.csv')
     lags = lag_frame(targets['total_kwh'])
     prepared = base.join(lags).copy()
     prepared.insert(0, 'timestamp_utc', df.index.astype(str))
@@ -143,10 +153,11 @@ def prepare_training_data(hourly_path: Path, output_dir: Path, test_days: int = 
     prepared['target_base_kwh'] = targets['base_kwh'].to_numpy()
     prepared['target_behaviour_kwh'] = targets['behaviour_kwh'].to_numpy()
     prepared['target_thermal_kwh'] = targets['thermal_kwh'].to_numpy()
-    prepared['split'] = np.where(np.arange(len(df)) < cutoff, 'train', 'test')
+    positions = np.arange(len(df))
+    prepared['split'] = np.where(positions < cutoff, 'train', np.where(positions < cutoff+horizon_hours, 'test', 'unused'))
     # The first 168 rows have insufficient energy history for any load model.
     train = prepared.iloc[168:cutoff].copy()
-    test = prepared.iloc[cutoff:].copy()
+    test = prepared.iloc[cutoff:cutoff+horizon_hours].copy()
     if train[list(LAG_NAMES)].isna().any().any() or test[list(LAG_NAMES)].isna().any().any():
         raise AssertionError('Prepared rows after the lag warm-up must have complete lags')
     manifest = {
@@ -155,14 +166,16 @@ def prepare_training_data(hourly_path: Path, output_dir: Path, test_days: int = 
         'rows_source': len(df),
         'rows_train': len(train),
         'rows_test': len(test),
-        'test_days': test_days,
+        'forecast_start_local': local_start.isoformat(),
+        'max_forecast_horizon_hours': horizon_hours,
+        'reported_horizons_hours': [h for h in (24, 72, 168) if h <= horizon_hours],
         'train_start_utc': str(train['timestamp_utc'].iloc[0]),
         'train_end_utc': str(train['timestamp_utc'].iloc[-1]),
         'test_start_utc': str(test['timestamp_utc'].iloc[0]),
         'test_end_utc': str(test['timestamp_utc'].iloc[-1]),
         'calendar_weather_features': list(base.columns),
         'observed_energy_lag_columns': list(LAG_NAMES),
-        'load_feature_rule': 'Load models receive occupancy_hat, never occupancy_mean. Recursive test predictions replace future energy lags with model predictions.',
+        'load_feature_rule': 'Load models receive occupancy_hat, never occupancy_mean. Recursive forecast predictions replace future energy lags with model predictions.',
         'targets': list(targets.columns),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -256,7 +269,8 @@ def _save_model(path: Path, model) -> None:
 
 
 def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFrame,
-                   occupancy_metrics: pd.DataFrame, load_metrics: pd.DataFrame) -> None:
+                   occupancy_metrics: pd.DataFrame, load_metrics: pd.DataFrame,
+                   horizon_hours: int) -> None:
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -275,13 +289,13 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
         axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    first_hours = 14*24
+    first_hours = min(horizon_hours, 14*24)
     occ_window = first_window(occupancy, first_hours)
     fig, ax = plt.subplots(figsize=(16, 5))
     ax.plot(local_time(occ_window.drop_duplicates('timestamp_utc')), occ_window.drop_duplicates('timestamp_utc')['actual_occupancy_mean'], color='#202020', linewidth=2.4, label='Actual occupancy')
     for name, group in occ_window.groupby('model_id', sort=False):
         ax.plot(local_time(group), group['occupancy_hat'], color=BRIGHT_COLOURS[name], linewidth=1.35, label=f'Predicted: {name}')
-    ax.set(title='Occupancy forecast: first 14 test days', ylabel='Residents at home', xlabel='Polish local time')
+    ax.set(title=f'Occupancy forecast: {first_hours}-hour horizon', ylabel='Residents at home', xlabel='Polish local time')
     ax.set_ylim(-0.1, 4.1); ax.grid(alpha=.25); ax.legend(ncol=4, loc='upper right'); format_time_axis(ax); fig.tight_layout()
     fig.savefig(output_dir/'occupancy_prediction_first_14_days.png', dpi=160); plt.close(fig)
 
@@ -292,7 +306,7 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
     ax.plot(actual_daily['date'], actual_daily['actual'], color='#202020', linewidth=2.4, label='Actual daily mean')
     for name, group in daily.groupby('model_id', sort=False):
         ax.plot(group['date'], group['predicted'], color=BRIGHT_COLOURS[name], linewidth=1.35, label=f'Predicted: {name}')
-    ax.set(title='Occupancy forecast: daily mean across the complete test period', ylabel='Residents at home', xlabel='Date')
+    ax.set(title=f'Occupancy forecast: daily mean across the {horizon_hours}-hour horizon', ylabel='Residents at home', xlabel='Date')
     ax.set_ylim(-0.1, 4.1); ax.grid(alpha=.25); ax.legend(ncol=4, loc='upper right'); format_time_axis(ax); fig.tight_layout()
     fig.savefig(output_dir/'occupancy_daily_mean_comparison.png', dpi=160); plt.close(fig)
 
@@ -302,7 +316,7 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
     ax.plot(local_time(actual), actual['actual_total_kwh'], color='#202020', linewidth=2.3, label='Actual total load')
     for name, group in load_window.groupby('model_id', sort=False):
         ax.plot(local_time(group), group['load_hat'], color=BRIGHT_COLOURS[name], linewidth=1.05, label=name.replace('_', ' '))
-    ax.set(title='Recursive load forecasts: first 14 test days', ylabel='Energy per hour (kWh)', xlabel='Polish local time')
+    ax.set(title=f'Recursive load forecasts: {first_hours}-hour horizon', ylabel='Energy per hour (kWh)', xlabel='Polish local time')
     ax.grid(alpha=.25); ax.legend(ncol=3, loc='upper right'); format_time_axis(ax); fig.tight_layout()
     fig.savefig(output_dir/'load_prediction_first_14_days.png', dpi=160); plt.close(fig)
 
@@ -313,7 +327,7 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
     ax.plot(actual_daily['date'], actual_daily['actual'], color='#202020', linewidth=2.4, label='Actual daily total')
     for name, group in daily_load.groupby('model_id', sort=False):
         ax.plot(group['date'], group['predicted'], color=BRIGHT_COLOURS[name], linewidth=1.15, label=name.replace('_', ' '))
-    ax.set(title='Recursive load forecasts: daily energy across the complete test period', ylabel='Daily energy (kWh)', xlabel='Date')
+    ax.set(title=f'Recursive load forecasts: daily energy across the {horizon_hours}-hour horizon', ylabel='Daily energy (kWh)', xlabel='Date')
     ax.grid(alpha=.25); ax.legend(ncol=3, loc='upper right'); format_time_axis(ax); fig.tight_layout()
     fig.savefig(output_dir/'load_daily_energy_comparison.png', dpi=160); plt.close(fig)
 
@@ -323,17 +337,20 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
 <h2>Occupancy metrics</h2>{occupancy_metrics.round(4).to_html(index=False)}
 <h2>Load metrics</h2>{load_metrics.round(4).to_html(index=False)}
 <h2>Occupancy: detailed period</h2><img src="occupancy_prediction_first_14_days.png">
-<h2>Occupancy: full test period</h2><img src="occupancy_daily_mean_comparison.png">
+<h2>Occupancy: full forecast horizon</h2><img src="occupancy_daily_mean_comparison.png">
 <h2>Load: detailed period</h2><img src="load_prediction_first_14_days.png">
-<h2>Load: full test period</h2><img src="load_daily_energy_comparison.png"></body></html>'''
+<h2>Load: full forecast horizon</h2><img src="load_daily_energy_comparison.png"></body></html>'''
     (output_dir/'benchmark_dashboard.html').write_text(html, encoding='utf-8')
 
 
-def run_model_benchmark(hourly_path: Path, output_dir: Path, test_days: int = 90) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Prepare separate data, forecast occupancy, and compare six load models."""
-    prepared = prepare_training_data(hourly_path, output_dir, test_days)
+def run_model_benchmark(hourly_path: Path, output_dir: Path,
+                        forecast_start_local: str = '2025-05-01 00:00:00',
+                        horizon_hours: int = 168) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """Prepare data, forecast occupancy, and compare six bounded forecasts."""
+    prepared = prepare_training_data(hourly_path, output_dir, forecast_start_local, horizon_hours)
     base, targets, cutoff = prepared.base_features, prepared.targets, prepared.cutoff
-    end = len(base)
+    end = cutoff + len(prepared.test)
+    reported_horizons = [h for h in (24, 72, 168) if h <= horizon_hours]
     models_dir = output_dir/'models'; models_dir.mkdir(exist_ok=True)
     occupancy_rows: list[dict] = []
     load_rows: list[dict] = []
@@ -347,7 +364,9 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path, test_days: int = 90
         occupancy_hat = np.clip(occupancy_model.predict(base.to_numpy(float)), 0.0, 4.0)
         _save_model(models_dir/f'occupancy_{algorithm}.pkl', occupancy_model)
         occupancy_test = occupancy_hat[cutoff:]
-        occupancy_metric_rows.append({'model_id': algorithm, **_regression_metrics(actual_occupancy[cutoff:], occupancy_test)})
+        for horizon in reported_horizons:
+            occupancy_metric_rows.append({'model_id': algorithm, 'horizon_hours': horizon,
+                                          **_regression_metrics(actual_occupancy[cutoff:cutoff+horizon], occupancy_test[:horizon])})
         for pos, row in enumerate(range(cutoff, end)):
             occupancy_rows.append({
                 'timestamp_utc': base.index[row].isoformat(),
@@ -362,8 +381,9 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path, test_days: int = 90
         _save_model(models_dir/f'direct_{algorithm}.pkl', direct_model)
         direct_hat = _recursive_forecast(direct_model, base, occupancy_hat, actual_total, cutoff, end)
         direct_id = f'direct_{algorithm}'
-        load_metric_rows.append({'model_id': direct_id, 'architecture': 'direct', 'algorithm': algorithm,
-                                 **_regression_metrics(actual_total[cutoff:], direct_hat)})
+        for horizon in reported_horizons:
+            load_metric_rows.append({'model_id': direct_id, 'architecture': 'direct', 'algorithm': algorithm, 'horizon_hours': horizon,
+                                     **_regression_metrics(actual_total[cutoff:cutoff+horizon], direct_hat[:horizon])})
 
         component_hats: dict[str, np.ndarray] = {}
         for component in ('base_kwh', 'behaviour_kwh', 'thermal_kwh'):
@@ -373,8 +393,9 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path, test_days: int = 90
             component_hats[component] = _recursive_forecast(model, base, occupancy_hat, target, cutoff, end)
         modular_hat = sum(component_hats.values())
         modular_id = f'modular_{algorithm}'
-        load_metric_rows.append({'model_id': modular_id, 'architecture': 'modular', 'algorithm': algorithm,
-                                 **_regression_metrics(actual_total[cutoff:], modular_hat)})
+        for horizon in reported_horizons:
+            load_metric_rows.append({'model_id': modular_id, 'architecture': 'modular', 'algorithm': algorithm, 'horizon_hours': horizon,
+                                     **_regression_metrics(actual_total[cutoff:cutoff+horizon], modular_hat[:horizon])})
 
         for pos, row in enumerate(range(cutoff, end)):
             common = {
@@ -392,18 +413,21 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path, test_days: int = 90
     occupancy_predictions = pd.DataFrame(occupancy_rows)
     load_predictions = pd.DataFrame(load_rows)
     occupancy_metrics = pd.DataFrame(occupancy_metric_rows)
-    load_metrics = pd.DataFrame(load_metric_rows).sort_values(['architecture', 'mae']).reset_index(drop=True)
+    load_metrics = pd.DataFrame(load_metric_rows).sort_values(['horizon_hours', 'architecture', 'mae']).reset_index(drop=True)
     occupancy_predictions.to_csv(output_dir/'occupancy_predictions.csv', index=False, float_format='%.6f')
     load_predictions.to_csv(output_dir/'load_predictions.csv', index=False, float_format='%.6f')
     occupancy_metrics.to_csv(output_dir/'occupancy_metrics.csv', index=False, float_format='%.6f')
     load_metrics.to_csv(output_dir/'load_metrics.csv', index=False, float_format='%.6f')
-    _create_charts(output_dir, occupancy_predictions, load_predictions, occupancy_metrics, load_metrics)
+    _create_charts(output_dir, occupancy_predictions, load_predictions, occupancy_metrics, load_metrics, horizon_hours)
     spec = {
         **prepared.manifest,
         'occupancy_models': list(MODEL_NAMES),
         'load_models': [f'{architecture}_{algorithm}' for architecture in ('direct', 'modular') for algorithm in MODEL_NAMES],
         'load_features': list(base.columns) + ['occupancy_hat'] + list(LAG_NAMES),
-        'recursive_test_policy': 'At every test hour, all future load lags and rolling means are calculated from earlier predictions, never later actual test demand.',
+        'recursive_test_policy': 'At every forecast hour, load lags and rolling means are calculated from earlier predictions, never later actual demand.',
+        'forecast_start_local': prepared.manifest['forecast_start_local'],
+        'max_forecast_horizon_hours': horizon_hours,
+        'reported_horizons_hours': reported_horizons,
         'modular_targets': ['base_kwh', 'behaviour_kwh', 'thermal_kwh'],
     }
     (output_dir/'benchmark_spec.json').write_text(json.dumps(spec, indent=2), encoding='utf-8')

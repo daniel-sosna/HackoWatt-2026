@@ -28,7 +28,7 @@ python main.py model-benchmark
 
 - Forecasts may use only values known at the issue time: past measurements, issued weather forecasts, calendars, and planned schedules.
 - Never train or evaluate with future measured `total_kwh`, appliance loads, occupancy, indoor temperature, or boiler temperature as a feature.
-- Keep the seasonal-naive baseline and report the 24-hour, 3-day, and 7-day horizons when changing forecasting code.
+- Keep the seasonal-naive baseline in the legacy forecast component. The model benchmark must train through April 2025 and report only the 24-, 72-, and 168-hour horizons from the May 2025 forecast start.
 
 ## Documentation and verification
 
