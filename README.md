@@ -2,14 +2,21 @@
 
 A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The historical household generator contains no PV or battery; the separate Renewable Energy Simulator evaluates rooftop PV against that unchanged demand profile.
 
-## Quick start in PyCharm
+## Quick start
 
-1. Open this folder with **File → Open**.
-2. Select `.venv/Scripts/python.exe` if the environment already exists on this computer. On a new computer, create a Python 3.11+ virtual environment and run `pip install -r requirements.txt`.
-3. Run `main.py` with the required component. Generation dates come from the weather file and are not set separately.
-4. After running `dashboard`, open `results/default/dashboard.html` by double-clicking it. No server or internet connection is required.
+Create and activate a Python 3.11+ virtual environment from the repository root:
 
-```powershell
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Use `requirements.txt` for normal development and runtime installs. Use `requirements-tested.txt` instead when reproducing the exact dependency versions used by the retained validation checks. On Windows, activate with `.venv\\Scripts\\activate`.
+
+Run `main.py` with the required component. Generation dates come from the weather file and are not set separately. After running `dashboard`, open `results/default/dashboard.html`; no server or internet connection is required.
+
+```bash
 python main.py generate
 python main.py dashboard
 python main.py forecast
@@ -36,7 +43,7 @@ This is an input example, not a capacity recommendation. The default 3.5 kW capa
 
 For a fully manual home, use `config/manual_example.json`: every value is numeric and `mode = "manual"`. This mode rejects remaining sampled fields that have not been replaced manually. The realised house is always saved to `resolved_house.json`.
 
-```powershell
+```bash
 python main.py generate --config config/manual_example.json --output results/manual
 python main.py dashboard --input results/manual
 ```
