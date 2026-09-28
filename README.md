@@ -79,7 +79,9 @@ the simulator can learn washing-machine and dishwasher defaults from
 concrete scheduling recommendations, editable weekday/weekend presence and an
 optional `--model-profile` adapter for a colleague's load/occupancy model. The
 formulas, terminology, integration contract and limitations are documented in
-`docs/renewable_energy_simulator.md`.
+`docs/renewable_energy_simulator.md`. The evidence-backed design for replacing
+the heating and hot-water percentage proxies with a calibrated thermal digital
+twin and rolling model predictive controller is in `docs/thermal_mpc_design.md`.
 
 ## Sources and time handling
 
