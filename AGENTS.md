@@ -11,6 +11,7 @@ python main.py generate
 python main.py dashboard
 python main.py forecast
 python main.py forecast-dashboard
+python main.py model-benchmark
 ```
 
 `main.py` delegates to components in `src/hackowatt/components/`. Put a new user-facing capability in a component and register it in the application; do not add business logic to a legacy root wrapper. The generator is reusable from Python as `hackowatt.pipeline.generate(...)`.
@@ -33,7 +34,7 @@ python main.py forecast-dashboard
 
 - Keep authored documentation and user-facing text in English. Preserve the original language of external source files.
 - Update `docs/rules_v3.md` when changing behavioural or physical assumptions; rebuild and visually review `docs/rules_v3.pdf` if the rules document changes.
-- Update `docs/hourly_data_dictionary.md` when the hourly schema changes and `docs/forecast_models.md` when the forecasting contract changes.
+- Update `docs/hourly_data_dictionary.md` when the hourly schema changes, `docs/forecast_models.md` when the forecasting contract changes, and `docs/model_training.md` when the benchmark changes.
 - At minimum run `python -m unittest discover -s tests -v`, `python main.py --help`, and `git diff --check` after code or documentation changes. Regenerate representative outputs when a change affects the data pipeline.
 
 User instructions take precedence over this file.

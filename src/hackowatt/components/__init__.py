@@ -3,6 +3,7 @@ from .base import ComponentRegistry
 from .forecast_dashboard import ForecastDashboardComponent
 from .historical_data import HistoricalDashboardComponent, HistoricalDataComponent
 from .load_forecasting import LoadForecastComponent
+from .model_benchmark import ModelBenchmarkComponent
 
 
 def built_in_registry() -> ComponentRegistry:
@@ -11,4 +12,5 @@ def built_in_registry() -> ComponentRegistry:
     registry.register(HistoricalDashboardComponent())
     registry.register(LoadForecastComponent())
     registry.register(ForecastDashboardComponent())
+    registry.register(ModelBenchmarkComponent())
     return registry

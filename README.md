@@ -66,6 +66,15 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 `main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` creates the offline comparison dashboard at `results/forecast/forecast_dashboard.html`. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
 
+## ML training benchmark
+
+Use the new end-to-end benchmark to create separate chronological training and test copies of `hourly.csv`, forecast occupancy, train Random Forest, XGBoost, and CatBoost models, and generate bright comparison charts for direct and modular load forecasts:
+
+```powershell
+python main.py model-benchmark
+```
+
+Outputs are written to `results/model_benchmark/`. The original hourly data is never changed. See `docs/model_training.md` for the feature policy, files, and recursive test protocol.
 ## Sources and time handling
 
 Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.
