@@ -18,7 +18,9 @@ The command creates an independent `results/model_benchmark/` directory containi
 | `occupancy_predictions.csv`, `occupancy_metrics.csv` | Actual and predicted occupancy, with 24/72/168-hour metrics. |
 | `load_predictions.csv`, `load_metrics.csv` | Actual and predicted whole-home load, with 24/72/168-hour metrics. |
 | `models/` | Pickled fitted occupancy, direct-load, and modular component models. |
-| `*.png`, `benchmark_dashboard.html` | Bright-colour comparison charts and an offline dashboard. |
+| `occupancy_forecast_24h.png`, `occupancy_forecast_72h.png`, `occupancy_forecast_168h.png` | Separate occupancy comparison charts for each forecast horizon. |
+| `load_forecast_24h.png`, `load_forecast_72h.png`, `load_forecast_168h.png` | Separate load comparison charts for each forecast horizon. |
+| `benchmark_dashboard.html` | Offline dashboard with all six horizon-specific charts. |
 
 ## Feature policy
 

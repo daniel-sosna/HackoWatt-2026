@@ -289,57 +289,55 @@ def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFram
         axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    first_hours = min(horizon_hours, 14*24)
-    occ_window = first_window(occupancy, first_hours)
-    fig, ax = plt.subplots(figsize=(16, 5))
-    ax.plot(local_time(occ_window.drop_duplicates('timestamp_utc')), occ_window.drop_duplicates('timestamp_utc')['actual_occupancy_mean'], color='#202020', linewidth=2.4, label='Actual occupancy')
-    for name, group in occ_window.groupby('model_id', sort=False):
-        ax.plot(local_time(group), group['occupancy_hat'], color=BRIGHT_COLOURS[name], linewidth=1.35, label=f'Predicted: {name}')
-    ax.set(title=f'Occupancy forecast: {first_hours}-hour horizon', ylabel='Residents at home', xlabel='Polish local time')
-    ax.set_ylim(-0.1, 4.1); ax.grid(alpha=.25); ax.legend(ncol=4, loc='upper right'); format_time_axis(ax); fig.tight_layout()
-    fig.savefig(output_dir/'occupancy_prediction_first_14_days.png', dpi=160); plt.close(fig)
+    horizons = [h for h in (24, 72, 168) if h <= horizon_hours]
+    for hours in horizons:
+        occ_window = first_window(occupancy, hours)
+        fig, ax = plt.subplots(figsize=(16, 5))
+        actual_occupancy = occ_window.drop_duplicates('timestamp_utc')
+        ax.plot(local_time(actual_occupancy), actual_occupancy['actual_occupancy_mean'],
+                color='#202020', linewidth=2.4, label='Actual occupancy')
+        for name, group in occ_window.groupby('model_id', sort=False):
+            ax.plot(local_time(group), group['occupancy_hat'], color=BRIGHT_COLOURS[name],
+                    linewidth=1.35, label=f'Predicted: {name}')
+        ax.set(title=f'Occupancy forecast: {hours}-hour horizon',
+               ylabel='Residents at home', xlabel='Polish local time')
+        ax.set_ylim(-0.1, 4.1)
+        ax.grid(alpha=.25)
+        ax.legend(ncol=4, loc='upper right')
+        format_time_axis(ax)
+        fig.tight_layout()
+        fig.savefig(output_dir/f'occupancy_forecast_{hours}h.png', dpi=160)
+        plt.close(fig)
 
-    occ_daily = occupancy.copy(); occ_daily['date'] = pd.to_datetime(occ_daily['timestamp_local'], utc=True).dt.tz_convert('Europe/Warsaw').dt.date
-    daily = occ_daily.groupby(['date', 'model_id'], as_index=False).agg(actual=('actual_occupancy_mean', 'mean'), predicted=('occupancy_hat', 'mean'))
-    fig, ax = plt.subplots(figsize=(16, 5))
-    actual_daily = daily.drop_duplicates('date')
-    ax.plot(actual_daily['date'], actual_daily['actual'], color='#202020', linewidth=2.4, label='Actual daily mean')
-    for name, group in daily.groupby('model_id', sort=False):
-        ax.plot(group['date'], group['predicted'], color=BRIGHT_COLOURS[name], linewidth=1.35, label=f'Predicted: {name}')
-    ax.set(title=f'Occupancy forecast: daily mean across the {horizon_hours}-hour horizon', ylabel='Residents at home', xlabel='Date')
-    ax.set_ylim(-0.1, 4.1); ax.grid(alpha=.25); ax.legend(ncol=4, loc='upper right'); format_time_axis(ax); fig.tight_layout()
-    fig.savefig(output_dir/'occupancy_daily_mean_comparison.png', dpi=160); plt.close(fig)
+        load_window = first_window(loads, hours)
+        fig, ax = plt.subplots(figsize=(16, 5))
+        actual_load = load_window.drop_duplicates('timestamp_utc')
+        ax.plot(local_time(actual_load), actual_load['actual_total_kwh'], color='#202020',
+                linewidth=2.3, label='Actual total load')
+        for name, group in load_window.groupby('model_id', sort=False):
+            ax.plot(local_time(group), group['load_hat'], color=BRIGHT_COLOURS[name],
+                    linewidth=1.05, label=name.replace('_', ' '))
+        ax.set(title=f'Recursive load forecasts: {hours}-hour horizon',
+               ylabel='Energy per hour (kWh)', xlabel='Polish local time')
+        ax.grid(alpha=.25)
+        ax.legend(ncol=3, loc='upper right')
+        format_time_axis(ax)
+        fig.tight_layout()
+        fig.savefig(output_dir/f'load_forecast_{hours}h.png', dpi=160)
+        plt.close(fig)
 
-    load_window = first_window(loads, first_hours)
-    fig, ax = plt.subplots(figsize=(16, 5))
-    actual = load_window.drop_duplicates('timestamp_utc')
-    ax.plot(local_time(actual), actual['actual_total_kwh'], color='#202020', linewidth=2.3, label='Actual total load')
-    for name, group in load_window.groupby('model_id', sort=False):
-        ax.plot(local_time(group), group['load_hat'], color=BRIGHT_COLOURS[name], linewidth=1.05, label=name.replace('_', ' '))
-    ax.set(title=f'Recursive load forecasts: {first_hours}-hour horizon', ylabel='Energy per hour (kWh)', xlabel='Polish local time')
-    ax.grid(alpha=.25); ax.legend(ncol=3, loc='upper right'); format_time_axis(ax); fig.tight_layout()
-    fig.savefig(output_dir/'load_prediction_first_14_days.png', dpi=160); plt.close(fig)
-
-    daily_load = loads.copy(); daily_load['date'] = pd.to_datetime(daily_load['timestamp_local'], utc=True).dt.tz_convert('Europe/Warsaw').dt.date
-    daily_load = daily_load.groupby(['date', 'model_id'], as_index=False).agg(actual=('actual_total_kwh', 'sum'), predicted=('load_hat', 'sum'))
-    fig, ax = plt.subplots(figsize=(16, 5))
-    actual_daily = daily_load.drop_duplicates('date')
-    ax.plot(actual_daily['date'], actual_daily['actual'], color='#202020', linewidth=2.4, label='Actual daily total')
-    for name, group in daily_load.groupby('model_id', sort=False):
-        ax.plot(group['date'], group['predicted'], color=BRIGHT_COLOURS[name], linewidth=1.15, label=name.replace('_', ' '))
-    ax.set(title=f'Recursive load forecasts: daily energy across the {horizon_hours}-hour horizon', ylabel='Daily energy (kWh)', xlabel='Date')
-    ax.grid(alpha=.25); ax.legend(ncol=3, loc='upper right'); format_time_axis(ax); fig.tight_layout()
-    fig.savefig(output_dir/'load_daily_energy_comparison.png', dpi=160); plt.close(fig)
+    chart_sections = ''.join(
+        f'<h2>Occupancy forecast: {hours} hours</h2><img src="occupancy_forecast_{hours}h.png">'
+        f'<h2>Load forecast: {hours} hours</h2><img src="load_forecast_{hours}h.png">'
+        for hours in horizons
+    )
 
     html = f'''<!doctype html><html><head><meta charset="utf-8"><title>HackoWatt model benchmark</title>
 <style>body{{font-family:Arial,sans-serif;margin:32px;background:#f5f7fb;color:#172033}}h1,h2{{color:#12263f}}img{{max-width:100%;background:white;padding:8px;border-radius:8px;margin:8px 0 28px}}table{{border-collapse:collapse;background:white;margin-bottom:28px}}th,td{{padding:8px 12px;border:1px solid #d8dee9}}th{{background:#12263f;color:white}}</style>
 </head><body><h1>Load and occupancy model benchmark</h1><p>All load models use predicted occupancy, calendar flags, weather, and only energy history available before each recursively predicted hour.</p>
 <h2>Occupancy metrics</h2>{occupancy_metrics.round(4).to_html(index=False)}
 <h2>Load metrics</h2>{load_metrics.round(4).to_html(index=False)}
-<h2>Occupancy: detailed period</h2><img src="occupancy_prediction_first_14_days.png">
-<h2>Occupancy: full forecast horizon</h2><img src="occupancy_daily_mean_comparison.png">
-<h2>Load: detailed period</h2><img src="load_prediction_first_14_days.png">
-<h2>Load: full forecast horizon</h2><img src="load_daily_energy_comparison.png"></body></html>'''
+{chart_sections}</body></html>'''
     (output_dir/'benchmark_dashboard.html').write_text(html, encoding='utf-8')
 
 
