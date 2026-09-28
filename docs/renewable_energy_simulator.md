@@ -15,15 +15,26 @@ Open `results/renewable/renewable_energy_simulator.html`. The file contains its
 data and code, needs no server, makes no network requests and can be copied to a
 demo computer.
 
-The interface is organised like a consumer energy application with five
-bookmarkable tabs:
+The interface has four bookmarkable views:
 
-- **Overview** for headline PV, flow, savings and payback metrics;
-- **Smart plan** for device permissions, learned habits and recommendations;
-- **Household** for optimisation goals, grid limit, resident count and hourly
-  presence;
-- **Solar investment** for capacity comparison and editable financial inputs;
-- **Data & terms** for connection readiness, provenance and explanations.
+- **Your energy plan** places the daily before/after chart beside one useful
+  recommendation, with replay/forecast selection, event locks and saved scenarios.
+- **Solar investment** shows all five challenge outputs, selectable capacity
+  comparisons, editable prices and discounted lifetime cash flows.
+- **Home & comfort** combines hourly presence, appliance insights and a separate
+  24-hour temperature simulation.
+- **How it works** exposes data provenance, model errors, terminology and links
+  to the detailed presentation handbook.
+
+The builder also writes `results/renewable/simulator_methodology.html`. Its
+versioned source is `src/hackowatt/simulator_methodology.html`; it contains
+formulas, sources, worked results, constants, integration contracts, limitations
+and a five-minute demo script. Both generated HTML files are self-contained.
+Copy them together so the handbook link works offline.
+
+Native controls, visible focus, larger text, higher contrast, explanatory copy,
+chart tables and responsive layouts support a wider range of users. These
+features are not a claim of formal accessibility certification.
 
 ## Two economic modes
 
@@ -72,7 +83,7 @@ the balance or economic model.
 ## Learned habits and constraints
 
 The simulator reads cycle records from `appliance_events.csv`, currently
-washing-machine and dishwasher cycles. For each physical appliance it learns
+washing-machine, dishwasher and opt-in personal-activity sessions. For each category it learns
 the 10th percentile, median and 90th percentile of local start time. The
 observed window becomes a default only. The user can edit:
 
@@ -88,7 +99,7 @@ typical 24-hour energy profile, annual energy, busiest hour and event count.
 
 The recommendations panel reports concrete historical examples as
 `original time -> proposed time`, together with the moved kWh, reason and
-estimated value. Results can be filtered by device.
+estimated value. The daily chart and table can focus on a selected device.
 
 The browser optimiser moves complete non-interruptible cycle profiles, preserves
 their kWh and prevents overlapping cycles on the same physical appliance. It
@@ -110,10 +121,10 @@ label whether a value can come from an automatic API, a meter or CSV, learned
 history, user input, or a sensor.
 
 Space heating and the hot-water tank are removed from appliance shifting. The
-Household tab instead runs a 24-hour stateful controller with the repository's
+Home & comfort view instead runs a 24-hour stateful controller with the repository's
 one-zone RC heat balance and well-mixed tank equations. It carries indoor and
-tank temperature between hours, tests heater/boiler actions, penalises comfort
-or service shortfall, and compares the selected plan with thermostat control.
+tank temperature between hours, tests heater/boiler actions, rejects checked comfort
+or service violations, and compares the selected plan with thermostat control.
 The result remains advisory because the supplied temperatures and house
 parameters are synthetic. The dashboard states that control hardware/software
 cost is not included in package payback.
@@ -123,7 +134,7 @@ cost is not included in package payback.
 `python main.py forecast` supplies the default Tomorrow view from the latest
 rolling-origin validation horizon. The page shows demand, PV, tariff, an
 empirical 10--90% residual interval, forecast issue time, WAPE, peak-time error,
-and the components driving the largest predicted peaks. Recorded weather in
+and separate component estimates at the largest predicted peaks. Recorded weather in
 this validation output is clearly labelled as a perfect-weather assumption.
 
 A real provider or team service can replace that backtest without changing the
@@ -137,10 +148,13 @@ python main.py renewable-dashboard `
 
 The issued forecast requires hourly, increasing `timestamp_utc`, `load_kwh`,
 `outdoor_c`, `wind_ms`, and `radiation_wm2` for at least 24 hours. Optional
-columns are `issued_at_utc`, `model_id`, `lower_kwh`, `upper_kwh`, `base_kwh`,
+columns include `pv_kwh_per_kwp` (provider PV production, bypassing yield scaling), `issued_at_utc`, `model_id`, `lower_kwh`, `upper_kwh`, `base_kwh`,
 `behaviour_kwh`, `space_heating_kwh`, `water_heating_kwh`, and
-`hot_water_draw_l`. Sensor JSON accepts `indoor_c`, `tank_c`, and an optional
-`issued_at_utc`. The active source and uncertainty status remain visible.
+`hot_water_draw_l`. Sensor JSON accepts `indoor_c` and `tank_c`; sensor freshness is not yet enforced.
+The active source and uncertainty status remain visible. Missing forecast issue
+time is shown as unknown. Imports are static snapshots, not automatic live feeds.
+Thermal control requires all three component/draw columns: `space_heating_kwh`,
+`water_heating_kwh` and `hot_water_draw_l`.
 
 ## Colleague model contract
 
@@ -187,7 +201,7 @@ after subsidy; users must enter a value appropriate to their eligibility.
 - The scheduling algorithm is a transparent greedy optimiser for the demo, not
   a proof of the global optimum.
 - The thermal controller uses a transparent 1R1C building and one-node tank with
-  hourly binary actions. A calibrated 2R2C/three-node model remains the product
+  hourly 0/50/100% duty actions, 15-minute state checks and a terminal heat-reserve constraint. A calibrated 2R2C/three-node model remains the product
   upgrade after real sensors are available.
 - Poland-mode defaults are illustrative editable values, not a financial offer.
 

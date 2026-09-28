@@ -51,6 +51,7 @@ class RenewableEnergyTests(unittest.TestCase):
         hourly['total_kwh'] = seed.total_kwh.to_numpy() - provisional_base + .2
         encoded, base = prepare_flexible_events(hourly, events)
         self.assertAlmostEqual(sum(encoded[0]['profile']), .9, places=6)
+        self.assertEqual(encoded[0]['startMinute'], 30)
         self.assertAlmostEqual(base.sum() + encoded[0]['energyKwh'],
                                hourly.total_kwh.sum(), places=5)
 
@@ -76,6 +77,21 @@ class RenewableEnergyTests(unittest.TestCase):
             sensor_path.write_text('{"indoor_c": 20.7, "tank_c": 51}', encoding='utf-8')
             applied = apply_model_profile(hourly, profile_path)
             payload = build_issued_forecast_payload(forecast_path, sensor_path)
+            self.assertFalse(payload['isLive'])
+            self.assertFalse(payload['thermalInputsAvailable'])
+            self.assertIsNone(payload['issueTimeUtc'])
+            for column, value in [('load_kwh', -1), ('wind_ms', -2),
+                                  ('radiation_wm2', float('nan'))]:
+                with self.subTest(column=column):
+                    broken = forecast.copy()
+                    broken.loc[0, column] = value
+                    broken.to_csv(forecast_path, index=False)
+                    with self.assertRaises(ValueError):
+                        build_issued_forecast_payload(forecast_path)
+            forecast['lower_kwh'], forecast['upper_kwh'] = 2., 1.
+            forecast.to_csv(forecast_path, index=False)
+            with self.assertRaisesRegex(ValueError, 'lower_kwh'):
+                build_issued_forecast_payload(forecast_path)
         self.assertEqual(applied.attrs['load_source'], 'model profile: team-v1')
         self.assertEqual(payload['modelId'], 'team-v1')
         self.assertEqual(payload['initialIndoorC'], 20.7)

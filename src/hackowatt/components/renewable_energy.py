@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .base import ProjectContext
-from ..renewable import build_dashboard_data
+from ..renewable import build_dashboard_data, normalized_pv_profile
 
 
 def apply_model_profile(hourly: pd.DataFrame, profile_path: Path | None) -> pd.DataFrame:
@@ -73,7 +73,9 @@ def build_forecast_payload(hourly: pd.DataFrame, forecast_folder: Path | None) -
     # same model and horizon step. They are labelled as backtest intervals.
     model_rows['residual'] = (pd.to_numeric(model_rows.actual_kwh) -
                               pd.to_numeric(model_rows.load_hat))
-    quantiles = model_rows.groupby('horizon_h').residual.quantile([.1, .9]).unstack()
+    earlier = model_rows[(model_rows.origin_time < latest_origin) &
+                         (pd.to_datetime(model_rows.timestamp_utc, utc=True) < latest_origin)]
+    quantiles = earlier.groupby('horizon_h').residual.quantile([.1, .9]).unstack()
     lower, upper = [], []
     for row in horizon.itertuples():
         q = quantiles.loc[row.horizon_h] if row.horizon_h in quantiles.index else pd.Series({.1: 0, .9: 0})
@@ -132,9 +134,11 @@ def build_forecast_payload(hourly: pd.DataFrame, forecast_folder: Path | None) -
         'sourceIndex': source_indices,
         'localHour': local.hour.astype(int).tolist(),
         'localDayType': np.where(local.dayofweek < 5, 'weekday', 'weekend').tolist(),
-        'pvKwhPerKwpAt1000Yield': np.round(
-            pd.to_numeric(hourly.iloc[source_indices]['shortwave_radiation_instant']) /
-            1000 * .85, 5).tolist(),
+        'pvKwhPerKwpAt1000Yield': np.round(normalized_pv_profile(hourly)[source_indices], 7).tolist(),
+        'pvSource': 'Historical radiation shape normalised to the annual yield; hindsight replay only.',
+        'thermalInputsAvailable': not modular.empty,
+        'componentSource': 'Separate modular model estimates; they do not decompose the direct total forecast.',
+        'stateSource': 'Previous simulated hourly mean; approximate starting state, not a sensor.',
         'loadKwh': np.round(pd.to_numeric(horizon.load_hat), 5).tolist(),
         'actualKwh': np.round(pd.to_numeric(horizon.actual_kwh), 5).tolist(),
         'lowerKwh': np.round(lower, 5).tolist(),
@@ -151,8 +155,11 @@ def build_forecast_payload(hourly: pd.DataFrame, forecast_folder: Path | None) -
         'initialIndoorC': float(hourly.iloc[max(source_indices[0] - 1, 0)].indoor_c),
         'initialTankC': float(hourly.iloc[max(source_indices[0] - 1, 0)].tank_c),
         'metrics': metric_payload,
+        'modelComparison': metrics[['model_id', 'bucket', 'mae_kwh', 'wape_pct',
+                                    'peak_timing_mae_h']].round(3).to_dict('records'),
         'confidence': confidence,
-        'interval': '10th-90th percentile of rolling-origin residuals',
+        'interval': '10th–90th residual percentiles from earlier completed origins; uncalibrated empirical range',
+        'intervalSamples': int(earlier.origin_time.nunique()),
         'weatherAssumption': 'Recorded weather is used as a perfect issued forecast in this validation run.',
     }
 
@@ -179,19 +186,30 @@ def build_issued_forecast_payload(path: Path, sensor_state_path: Path | None = N
             raise ValueError(f'Issued forecast {name} must be finite')
         result = series.to_numpy(float)
         if nonnegative:
-            result = np.maximum(result, 0)
+            if (result < 0).any():
+                raise ValueError(f'Issued forecast {name} must be nonnegative')
         return np.round(result, 5).tolist()
 
     load = values('load_kwh', 0)
     lower = values('lower_kwh', load)
     upper = values('upper_kwh', load)
+    if np.any(np.asarray(lower) > np.asarray(upper)):
+        raise ValueError('lower_kwh must not exceed upper_kwh')
     state = {}
     if sensor_state_path:
         state = json.loads(Path(sensor_state_path).read_text(encoding='utf-8'))
-    issued_at = (str(frame.issued_at_utc.iloc[0]) if 'issued_at_utc' in frame else
-                 (time[0] - pd.Timedelta(hours=1)).isoformat())
+        for key, low, high in [('indoor_c', 0, 50), ('tank_c', 0, 95)]:
+            if key in state and (not np.isfinite(float(state[key])) or
+                                 not low <= float(state[key]) <= high):
+                raise ValueError(f'Sensor {key} is outside the supported range')
+    issued_at = None
+    if 'issued_at_utc' in frame:
+        issued_times = pd.to_datetime(frame.issued_at_utc, utc=True, errors='raise')
+        if issued_times.isna().any() or issued_times.nunique() != 1 or issued_times.iloc[0] > time[0]:
+            raise ValueError('issued_at_utc must be one issue time at or before the forecast start')
+        issued_at = issued_times.iloc[0].isoformat()
     return {
-        'available': True, 'kind': 'issued external forecast', 'isLive': True,
+        'available': True, 'kind': 'imported external forecast snapshot', 'isLive': False,
         'modelId': (str(frame.model_id.iloc[0]) if 'model_id' in frame else path.name),
         'issueTimeUtc': issued_at,
         'timestampUtc': time.strftime('%Y-%m-%dT%H:%M:%SZ').tolist(),
@@ -207,10 +225,14 @@ def build_issued_forecast_payload(path: Path, sensor_state_path: Path | None = N
         'solarRadiationWm2': values('radiation_wm2', 0),
         'pvKwhPerKwpAt1000Yield': np.round(
             np.asarray(values('radiation_wm2', 0)) / 1000 * .85, 5).tolist(),
+        'pvSource': 'Irradiance / 1000 × 0.85 planning proxy; optional pv_kwh_per_kwp replaces it.',
+        'thermalInputsAvailable': {'space_heating_kwh', 'water_heating_kwh', 'hot_water_draw_l'}.issubset(frame),
+        'componentSource': 'Imported component estimates; missing values are unknown.',
+        'stateSource': ('Imported sensor JSON; freshness must be checked before control.' if state else 'Assumed temperatures; manually editable.'),
         'hotWaterDrawL': values('hot_water_draw_l', 0),
         'initialIndoorC': float(state.get('indoor_c', 20)),
         'initialTankC': float(state.get('tank_c', 55)),
-        'metrics': {}, 'confidence': ('medium' if 'lower_kwh' in frame else 'unquantified'),
+        'metrics': {}, 'confidence': 'unquantified',
         'interval': ('provider interval' if 'lower_kwh' in frame else 'not provided'),
         'weatherAssumption': 'Weather and load values come from the issued forecast contract.',
     }
@@ -234,6 +256,15 @@ def build_renewable_dashboard(input_folder: Path, output_folder: Path,
     data['forecast'] = (build_issued_forecast_payload(issued_forecast_path, sensor_state_path)
                         if issued_forecast_path else
                         build_forecast_payload(hourly, forecast_folder))
+    if issued_forecast_path:
+        issued = pd.read_csv(issued_forecast_path)
+        if 'pv_kwh_per_kwp' in issued:
+            pv = pd.to_numeric(issued.pv_kwh_per_kwp, errors='raise').to_numpy(float)
+            if not np.isfinite(pv).all() or (pv < 0).any():
+                raise ValueError('pv_kwh_per_kwp must be finite and nonnegative')
+            data['forecast']['pvKwhPerKwpAt1000Yield'] = pv.tolist()
+            data['forecast']['pvSource'] = 'Imported per-kWp PV forecast (annual yield slider does not rescale it).'
+            data['forecast']['pvIsProvider'] = True
     house_path, config_path = input_folder / 'resolved_house.json', input_folder / 'run_config.json'
     if house_path.exists() and config_path.exists():
         run_config = json.loads(config_path.read_text(encoding='utf-8'))
@@ -247,12 +278,17 @@ def build_renewable_dashboard(input_folder: Path, output_folder: Path,
         data['thermalModel'] = {'available': False, 'status': 'House/config files unavailable'}
     template = (Path(__file__).resolve().parents[1] / 'renewable_dashboard.html').read_text(
         encoding='utf-8')
+    source = Path(__file__).resolve().parents[1]
+    for name in ('renewable_engine.js', 'renewable_ui.js', 'renewable_style.css'):
+        template = template.replace('/* EMBED_' + name + ' */', (source / name).read_text(encoding='utf-8'))
     output_folder.mkdir(parents=True, exist_ok=True)
     target = output_folder / 'renewable_energy_simulator.html'
     target.write_text(template.replace(
         '/* EMBED_DATA */',
-        'const D=' + json.dumps(data, separators=(',', ':'), ensure_ascii=False) + ';'),
+        'const D=' + json.dumps(data, separators=(',', ':'), ensure_ascii=False, allow_nan=False).replace('<', '\\u003c') + ';'),
         encoding='utf-8')
+    (output_folder / 'simulator_methodology.html').write_text(
+        (source / 'simulator_methodology.html').read_text(encoding='utf-8'), encoding='utf-8')
     return target
 
 

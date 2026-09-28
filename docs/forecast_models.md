@@ -42,3 +42,24 @@ python main.py forecast-dashboard
 ## Moving to a real home
 
 For an honest day-ahead run, provide only the published weather forecast, known calendar, planned shifts/WFH, and past real measurements. Do not provide future actual indoor temperature, future occupancy, or actual future appliance demand. Once a real meter is available, retrain chronologically and store each prediction with its observation, issue time, and model version.
+
+## Renewable simulator presentation and import contract
+
+The renewable view labels the saved run as a historical backtest. Its empirical
+10th–90th residual range uses only earlier origins with target observations
+strictly before the displayed issue time. The range is uncalibrated; the model
+is selected retrospectively by validation WAPE, not on an independent holdout.
+Direct-total predictions and modular component estimates are displayed as
+separate estimates and must not be described as an exact decomposition.
+
+`renewable-dashboard --issued-forecast` accepts a static CSV snapshot with at
+least 24 consecutive UTC hours: `timestamp_utc`, `load_kwh`, `outdoor_c`,
+`wind_ms` and `radiation_wm2`. Energy, wind and irradiance must be finite and
+nonnegative; temperature may be negative. Optional `issued_at_utc` must be one
+issue time at or before the target start; an omitted issue time is unknown.
+Optional interval bounds must be nonnegative and ordered. Optional
+`pv_kwh_per_kwp` replaces the irradiance proxy without annual-yield rescaling.
+Thermal planning is enabled only with `space_heating_kwh`, `water_heating_kwh`
+and `hot_water_draw_l`. Sensor temperature ranges are checked, but freshness
+checks and an automatic refresh/control service remain future work. See the
+presentation handbook and `docs/renewable_energy_simulator.md` for full fields.

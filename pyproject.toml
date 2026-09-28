@@ -22,4 +22,4 @@ hackowatt = "hackowatt.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-hackowatt = ["dashboard.html", "renewable_dashboard.html"]
+hackowatt = ["dashboard.html", "renewable_dashboard.html", "renewable_style.css", "renewable_engine.js", "renewable_ui.js", "simulator_methodology.html"]

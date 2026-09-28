@@ -27,12 +27,21 @@ resolution. It includes:
   loss, heater power, setpoint, and deadband;
 - comfort, hot-water shortfall, and energy-balance diagnostics.
 
-The renewable dashboard now uses an hourly version of the 1R1C building and
-well-mixed tank states over its 24-hour forecast. A bounded beam search compares
-heater/boiler on/off actions, carries temperatures forward, and penalises room
-or tank shortfalls. It is an explainable first controller for the demo. The
-minute simulator remains the reference for validation, and real deployment
-still requires sensor calibration and the richer models below.
+The renewable dashboard uses the same model family with hourly decisions and
+four 15-minute state updates per hour. A bounded beam search (120 states) tests
+0/50/100% heater and boiler duty fractions. Candidates with checked comfort or
+hot-water-service violations are rejected; endpoint room and tank temperatures
+must preserve the thermostat baseline's reserve to within 0.05 °C. A feasible
+baseline remains a candidate. If no feasible plan is found, the interface shows
+a thermostat fallback and makes no comfort/saving claim.
+
+Tank draws include a cold-water depletion model; tank losses enter room gains.
+The experiment is separate from annual appliance/PV savings. It uses an
+approximate starting state and a hybrid of direct-total and modular-component
+forecasts, which must be reconciled before deployment. It is a bounded advisory
+plan, not a globally optimal schedule or a live MPC service. The minute simulator
+remains the reference for future controller validation. Full equations and
+limitations are in `src/hackowatt/simulator_methodology.html`.
 
 ## Recommended model hierarchy
 
