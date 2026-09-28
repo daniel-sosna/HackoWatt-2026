@@ -109,6 +109,10 @@ python main.py issue-date-forecast --input results/default/hourly.csv `
 The public Python API, response contract, and live-data boundary are in
 `docs/issue_date_forecast_api.md`.
 
+For the simplest PyCharm workflow, edit the date and horizon at the top of
+`run_issue_date_forecast.py`, then run that file directly. It writes the same
+three result files without command-line parameters.
+
 ## Sources and time handling
 
 Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.

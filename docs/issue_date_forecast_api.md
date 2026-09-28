@@ -49,6 +49,14 @@ future actual load as a forecast feature.
 The command writes `forecast.csv`, `backtest_actual.csv`, and `manifest.json`.
 It does not alter `hourly.csv`.
 
+## PyCharm one-file runner
+
+For a workflow without command-line parameters, open
+`run_issue_date_forecast.py` at the repository root. Change
+`FORECAST_START_LOCAL` and `HORIZON_HOURS` in the clearly marked settings
+block, then right-click the file in PyCharm and choose **Run**. It writes the
+same three output files as the command-line adapter.
+
 ## Current data boundary
 
 The bundled historical dataset is used as a backtest: it must contain the
