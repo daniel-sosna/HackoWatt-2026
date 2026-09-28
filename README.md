@@ -84,7 +84,7 @@ The approved operating policy is Direct Random Forest for the 24-hour horizon an
 python main.py selected-prediction --forecast-start-local "2025-09-10 00:00:00"
 ```
 
-It recreates the small `results/prediction/` package. `input/forecast_features.csv` contains only calendar and weather inputs; `output/` contains one selected forecast CSV per horizon and its metrics. `prediction_dashboard.html` and the three PNGs compare the selected backtest forecasts against actual historical demand. Alternative models, training copies, and pickles are discarded rather than placed in this folder.
+It recreates `results/prediction/`. `input/forecast_features.csv` contains only calendar and weather inputs; `output/` contains one selected forecast CSV per horizon and its metrics. `model/` is the developer hand-off: it contains only the selected fitted artifacts, the chronological training dataset, realised house parameters, requirements, and a runbook for using another issue date. `prediction_dashboard.html` and the three PNGs compare the selected backtest forecasts against actual historical demand.
 
 ## Sources and time handling
 

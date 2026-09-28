@@ -594,6 +594,21 @@ SELECTED_MODELS = {
     168: 'modular_catboost',
 }
 
+SELECTED_ARTIFACTS = {
+    'direct_random_forest_24h': [
+        'occupancy_random_forest.pkl',
+        'direct_random_forest.pkl',
+    ],
+    'modular_catboost_72h_168h': [
+        'occupancy_catboost.pkl',
+        'modular_base_kwh_catboost.pkl',
+        'modular_behaviour_kwh_catboost.pkl',
+        'modular_space_heating_kwh_catboost.pkl',
+        'hot_water_event_catboost.pkl',
+        'hot_water_volume_catboost.pkl',
+    ],
+}
+
 
 def _create_selected_prediction_charts(output_dir: Path, forecasts: dict[int, pd.DataFrame]) -> None:
     """Create only the three charts belonging to the approved model policy."""
@@ -647,6 +662,21 @@ def create_selected_prediction_package(hourly_path: Path, output_dir: Path,
         feature_input.insert(0, 'timestamp_utc', feature_input.index.astype(str))
         feature_input.to_csv(input_dir/'forecast_features.csv', index=False, float_format='%.6f')
 
+        model_dir = output_dir/'model'
+        artifact_dir = model_dir/'artifacts'
+        artifact_dir.mkdir(parents=True)
+        # Preserve precisely the selected fitted models and their real training
+        # copy for hand-off. No competing algorithms are copied into the package.
+        for files in SELECTED_ARTIFACTS.values():
+            for filename in files:
+                shutil.copy2(working_dir/'models'/filename, artifact_dir/filename)
+        shutil.copy2(working_dir/'input_copy'/'train_model_dataset.csv', model_dir/'training_dataset.csv')
+        shutil.copy2(working_dir/'input_copy'/'feature_manifest.json', model_dir/'feature_manifest.json')
+        shutil.copy2(hourly_path.parent/'resolved_house.json', model_dir/'resolved_house.json')
+        (model_dir/'requirements.txt').write_text(
+            'numpy>=1.26,<3\npandas>=2.2,<4\nscikit-learn>=1.6,<1.7\ncatboost>=1.2,<1.3\n',
+            encoding='utf-8')
+
         issue = {
             'forecast_start_local': spec['forecast_start_local'],
             'source_hourly_csv': str(hourly_path),
@@ -656,6 +686,39 @@ def create_selected_prediction_package(hourly_path: Path, output_dir: Path,
             'output_rule': 'Each output CSV is a bounded backtest forecast. actual_total_kwh is retained only to evaluate this historical September run.',
         }
         (input_dir/'forecast_issue.json').write_text(json.dumps(issue, indent=2), encoding='utf-8')
+
+        package_manifest = {
+            'package_type': 'HackoWatt selected forecast model hand-off',
+            'forecast_start_local': spec['forecast_start_local'],
+            'training_rows': prepared.manifest['rows_train'],
+            'training_ends_before_forecast': True,
+            'selected_models_by_horizon_hours': SELECTED_MODELS,
+            'artifacts': SELECTED_ARTIFACTS,
+            'runtime_inputs_required': [
+                'calendar and weather features for every requested forecast hour',
+                'at least 168 hourly total-load observations before issue time',
+                'at least 168 hourly hot-water-draw observations before issue time for the modular model',
+                'tank_c and water_heater_kwh from the last observed hour for the modular model',
+            ],
+            'runtime_policy': 'Use main.py selected-prediction with a source hourly.csv and --forecast-start-local for retraining at another historical issue date. The retained pickles reproduce this fitted September package; retraining is required when the history changes.',
+        }
+        (model_dir/'package_manifest.json').write_text(json.dumps(package_manifest, indent=2), encoding='utf-8')
+        (model_dir/'DEVELOPER_HANDOFF.md').write_text('''# Selected forecast model hand-off
+
+This directory contains only the approved model policy: Direct Random Forest at 24 hours and Modular CatBoost at 72 and 168 hours. The fitted artifacts reproduce the September 2025 backtest. `training_dataset.csv` is the chronological training data ending immediately before the forecast issue time. `feature_manifest.json` defines its features, targets, and time boundary. `resolved_house.json` provides the physical boiler parameters used by the modular forecast.
+
+## Run on another issue date
+
+Use the repository entry point, which retrains from all rows preceding the requested local issue time and then writes the compact package:
+
+```powershell
+.venv\\Scripts\\python.exe main.py selected-prediction --input results/default/hourly.csv --output results/prediction --forecast-start-local "2025-09-10 00:00:00"
+```
+
+For a live deployment, replace the historical portion of `hourly.csv` with measured household history and provide issued weather/calendar inputs for the future window. The model must receive at least 168 prior hourly load observations. The modular forecast also needs the current tank temperature, prior heater state, and 168 hours of hot-water-draw history. Do not populate future measured load, occupancy, tank temperature, or hot-water draw.
+
+The pickles require the versions listed in `requirements.txt`. Use the application command for retraining and inference because it applies recursive lag handling and the physical boiler simulation around the fitted estimators.
+''', encoding='utf-8')
 
         forecasts: dict[int, pd.DataFrame] = {}
         selected_metrics: list[dict] = []
