@@ -82,6 +82,8 @@ formulas, terminology, integration contract and limitations are documented in
 `docs/renewable_energy_simulator.md`. The evidence-backed design for replacing
 the heating and hot-water percentage proxies with a calibrated thermal digital
 twin and rolling model predictive controller is in `docs/thermal_mpc_design.md`.
+The real-world data map, user settings, feature priorities, judging alignment,
+and five-minute demo path are in `docs/product_strategy.md`.
 
 ## Sources and time handling
 

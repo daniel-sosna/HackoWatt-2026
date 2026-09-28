@@ -86,6 +86,18 @@ screen and computer recommendations occur only while somebody is home. Changing
 presence constrains recommendations; it does not invent a new consumption
 profile by itself.
 
+The household control centre lets the user choose the optimisation goal:
+
+- lowest electricity bill uses the tariff and export value;
+- use the most rooftop solar prioritises reductions in grid import, with cost as
+  the tie-breaker;
+- avoid household grid peaks prioritises staying below an editable hourly grid
+  limit, with cost as the tie-breaker.
+
+The number of residents caps the editable hourly presence plan. Input cards
+label whether a value can come from an automatic API, a meter or CSV, learned
+history, user input, or a sensor.
+
 Space heating and the hot-water tank are available as disabled-by-default proxy
 optimisations. The proxy exposes only 15% of hourly heating and 50% of hourly
 tank energy as potentially movable and preserves their total kWh. It is clearly
