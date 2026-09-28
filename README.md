@@ -21,10 +21,11 @@ python main.py generate
 python main.py dashboard
 python main.py forecast
 python main.py forecast-dashboard
+python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
 python -m unittest discover -s tests -v
 ```
 
-A generated example is already available in `results/default`. It contains 17,544 physical hours for local calendar years 2024--2025, including 29 February.
+`python main.py generate` creates `results/default/hourly.csv` with 17,544 physical hours for local calendar years 2024--2025, including 29 February. Run this once before using a forecast command with its default input path.
 
 ## House parameters
 
@@ -92,6 +93,21 @@ python main.py selected-prediction --forecast-start-local "2025-09-10 00:00:00"
 ```
 
 It recreates `results/prediction/`. `input/forecast_features.csv` contains only calendar and weather inputs; `output/` contains one selected forecast CSV per horizon and its metrics. `model/` is the developer hand-off: it contains only the selected fitted artifacts, the chronological training dataset, realised house parameters, requirements, and a runbook for using another issue date. `prediction_dashboard.html` and the three PNGs compare the selected backtest forecasts against actual historical demand.
+
+## Forecast from a manually selected date
+
+Use `issue-date-forecast` when another program needs one selected horizon for
+a user-entered forecast date. It retrains only on data before the requested
+Polish local issue time and writes a compact forecast response:
+
+```powershell
+python main.py issue-date-forecast --input results/default/hourly.csv `
+  --forecast-start-local "2025-09-10 00:00:00" --horizon-hours 72 `
+  --output results/issue_date_forecast
+```
+
+The public Python API, response contract, and live-data boundary are in
+`docs/issue_date_forecast_api.md`.
 
 ## Sources and time handling
 

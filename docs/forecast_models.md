@@ -42,3 +42,18 @@ python main.py forecast-dashboard
 ## Moving to a real home
 
 For an honest day-ahead run, provide only the published weather forecast, known calendar, planned shifts/WFH, and past real measurements. Do not provide future actual indoor temperature, future occupancy, or actual future appliance demand. Once a real meter is available, retrain chronologically and store each prediction with its observation, issue time, and model version.
+
+## Manual issue-date forecasts
+
+`hackowatt.issue_date_forecast` is the reusable integration API for a
+user-selected forecast issue time. It accepts an hourly source path, a Polish
+local issue timestamp, and one exact horizon: 24, 72, or 168 hours. It trains
+only on rows before that timestamp and applies the approved policy: Direct
+Random Forest at 24 hours and Modular CatBoost at 72 and 168 hours.
+
+The API returns future timestamps, `forecast_kwh`, `occupancy_hat`, model ID,
+and modular components where applicable. Historical actual load is returned
+separately for evaluation; it is never a future model input. The command-line
+adapter is `python main.py issue-date-forecast --forecast-start-local "..."`.
+See `docs/issue_date_forecast_api.md` for the Python request and response
+contract.

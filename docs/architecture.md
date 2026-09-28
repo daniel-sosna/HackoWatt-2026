@@ -10,8 +10,9 @@ main.py / python -m hackowatt
         -> ComponentRegistry
             -> generate           historical-data component
             -> dashboard          historical-data dashboard component
-            -> forecast           load-forecast component
-            -> forecast-dashboard forecast-dashboard component
+        -> forecast           load-forecast component
+        -> forecast-dashboard forecast-dashboard component
+        -> issue-date-forecast reusable selected-model prediction component
 
 components -> domain implementation
     historical_data -> pipeline -> inputs, behaviour, devices, thermal
@@ -40,6 +41,7 @@ python main.py generate
 python main.py dashboard
 python main.py forecast
 python main.py forecast-dashboard
+python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
 ```
 
 With editable installation, the same commands use `hackowatt` instead of
