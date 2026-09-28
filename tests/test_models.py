@@ -9,7 +9,7 @@ import pandas as pd
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
 from hackowatt.inputs import load_config,load_weather,load_calendars,load_reference,resolve_house
-from hackowatt.behaviour import simulate_behaviour,CODE,calibrate_probabilities
+from hackowatt.behaviour import simulate_behaviour,CODE,calibrate_probabilities,schedule_family_vacations
 from hackowatt.devices import simulate_devices,cycle_profile
 from hackowatt.thermal import rc_step,simulate_thermal
 
@@ -51,6 +51,17 @@ class ModelTests(unittest.TestCase):
         with self.assertRaises(ValueError):resolve_house(c,np.random.default_rng(4))
         c['house']['overrides']=first
         self.assertEqual(resolve_house(c,np.random.default_rng(900)),first)
+        self.assertEqual(load_config(ROOT/'config/manual_example.json')['house']['mode'],'manual')
+
+    def test_joint_vacation_uses_twenty_parental_workdays_per_year(self):
+        labels=pd.date_range('2024-01-01','2025-12-31',freq='D').strftime('%Y-%m-%d').to_numpy()
+        plan=schedule_family_vacations(labels,self.public,self.config['behaviour'],np.random.default_rng(12))
+        for year in [2024,2025]:
+            trip_dates=[pd.Timestamp(day) for day in plan if day.startswith(str(year))]
+            charged=[day for day in trip_dates if day.weekday()<5 and day.strftime('%Y-%m-%d') not in self.public]
+            self.assertEqual(len(charged),20)
+            self.assertEqual({plan[d.strftime('%Y-%m-%d')].split('_')[0] for d in charged},{'summer','winter','spring'})
+            self.assertEqual(sum(plan[d.strftime('%Y-%m-%d')].startswith('summer') for d in charged),10)
 
     def test_rc_analytic_energy_and_timestep_consistency(self):
         self.assertAlmostEqual(rc_step(20,0,0,.2,10,1),20*np.exp(-.02))

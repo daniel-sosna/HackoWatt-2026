@@ -20,10 +20,13 @@ def simulate_thermal(weather, behaviour, base_power, water_l, house, config):
     radiation=weather.shortwave_radiation_instant.to_numpy()
     local=weather.index.tz_convert('Europe/Warsaw')
     day=np.asarray(local.dayofyear)
+    hour=np.asarray(local.hour)
+    month=np.asarray(local.month)
     mains=10+5*np.sin(2*np.pi*(day-120)/365.25)
     shade=np.where(np.isin(local.month,[5,6,7,8,9]),0.35,1.0)
     result={k:np.zeros(n,dtype=np.float32) for k in ['space_heating','water_heater','indoor_c','tank_c','setpoint_c',
-            'unmet_comfort_degree_minutes','hot_water_unmet_kwh','heat_loss_kw','solar_gain_kw','internal_gain_kw','thermal_residual_kwh']}
+            'unmet_comfort_degree_minutes','hot_water_unmet_kwh','heat_loss_kw','solar_gain_kw','internal_gain_kw','thermal_residual_kwh',
+            'night_ventilation_active_fraction']}
     ts=config['thermal'];dt=1/60
     warmup=min(n,int(ts['warmup_days']*1440))
     # First segment repeated only to condition storage; its energy is never exported twice.
@@ -58,6 +61,13 @@ def simulate_thermal(weather, behaviour, base_power, water_l, house, config):
         ach=h['air_changes_per_hour']+h['wind_ach_per_ms']*wind[w]
         if awake[k]>0 and t>h['window_open_above_c'] and outdoor[w]<t:
             ach+=h['window_open_ach']
+        ventilation = ts['night_ventilation']
+        at_night = hour[w] >= ventilation['start_hour'] or hour[w] < ventilation['end_hour']
+        night_ventilation = (ventilation['enabled'] and month[w] in ventilation['months'] and at_night
+                             and home[:,k].any() and t >= ventilation['minimum_indoor_c']
+                             and outdoor[w] <= t-ventilation['minimum_outdoor_delta_c'])
+        if night_ventilation:
+            ach += ventilation['additional_ach']
         conductance=(h['floor_area_m2']*h['fabric_loss_w_m2k']+0.33*volume*ach)/1000
         solar=h['effective_solar_area_m2']*radiation[w]*shade[w]/1000
         internal=(awake[k]*ts['person_awake_w']+sleeping[k]*ts['person_sleep_w'])/1000
@@ -74,4 +84,5 @@ def simulate_thermal(weather, behaviour, base_power, water_l, house, config):
             result['hot_water_unmet_kwh'][k]=unmet
             result['heat_loss_kw'][k]=loss_energy/dt;result['solar_gain_kw'][k]=solar;result['internal_gain_kw'][k]=internal
             result['thermal_residual_kwh'][k]=change-(total_gain*dt-loss_energy)
+            result['night_ventilation_active_fraction'][k]=float(night_ventilation)
     return result

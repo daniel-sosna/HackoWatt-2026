@@ -21,6 +21,24 @@ def load_config(path):
                 'child_screen_school_probability', 'child_screen_free_probability']:
         if not 0 <= c['behaviour'][key] <= 1:
             raise ValueError(f'{key} must be between 0 and 1')
+    blocks = c['behaviour'].get('vacation_blocks', [])
+    if sum(int(block.get('workdays', 0)) for block in blocks) != 20:
+        raise ValueError('vacation_blocks must contain exactly 20 parental workdays')
+    for block in blocks:
+        if not block.get('name') or int(block['workdays']) <= 0:
+            raise ValueError('Each vacation block needs a name and positive workdays')
+        for key in ['start', 'end']:
+            if not re.fullmatch(r'\d{2}-\d{2}', str(block.get(key, ''))):
+                raise ValueError(f'Vacation block {key} must use MM-DD')
+    ventilation = c['thermal'].get('night_ventilation', {})
+    if not isinstance(ventilation.get('enabled'), bool):
+        raise ValueError('night_ventilation.enabled must be boolean')
+    if not all(1 <= int(month) <= 12 for month in ventilation['months']):
+        raise ValueError('night_ventilation.months must be calendar months')
+    if not (0 <= int(ventilation['start_hour']) <= 23 and 0 <= int(ventilation['end_hour']) <= 23):
+        raise ValueError('night_ventilation hours must be in 0..23')
+    if ventilation['additional_ach'] < 0 or ventilation['minimum_outdoor_delta_c'] < 0:
+        raise ValueError('night_ventilation values must be nonnegative')
     return c
 
 def resolve_house(config, rng):

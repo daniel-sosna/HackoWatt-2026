@@ -1,8 +1,8 @@
 # Family behaviour appliance and heating generation rules
 
-Version 3.0 | 28 September 2026 | Implementation specification
+Version 3.1 | 28 September 2026 | Implementation specification
 
-This document specifies the runnable synthetic household generator in this repository. It covers Marek, Ania and their school-age children Kuba and Zosia in Katowice, appliance electricity, direct resistance space heating and a separate electric hot-water tank. It uses the supplied weather, Polish calendars and Polish household time-use reference. There is no photovoltaic generation, battery, heat pump, grid export or financial optimisation.
+This document specifies the runnable synthetic household generator in this repository. It covers Marek, Ania and their school-age children Kuba and Zosia in Katowice, appliance electricity, direct resistance space heating and a separate electric hot-water tank. It uses the supplied weather, Polish calendars and Polish household time-use reference. There is no photovoltaic generation, battery, heat pump, air conditioner, grid export or financial optimisation.
 
 The output is a complete hourly electricity and activity dataset over the supplied weather period. Internal activity and thermal calculations use one-minute steps. The model is a transparent scenario, not a reconstruction of measured household behaviour. Quantitative assumptions are editable in config/default.json; realised house values are saved with every run.
 
@@ -68,6 +68,8 @@ Independent adult proposals are an initial assumption, then constrained by avail
 
 Marek follows an assumed weekly morning/evening/night rotation anchored on Monday 2024-01-01. Shifts start Monday-Friday at 06:00, 14:00 or 22:00 and last eight hours. A night shift crosses midnight. On a public holiday retain a scheduled shift with probability 0.60. Ania works 08:00-16:00 on nonholiday weekdays, with two or three randomly selected home-working days per week, capped by eligible days. Her home-work breaks are 10:00-10:10, 12:30-13:00 and 15:00-15:10; only lunch is also reserved on office days.
 
+Each parent has 20 annual leave workdays. The realised allocation is shared: 10 workdays in a summer trip, 5 in winter and 5 in spring. For every calendar year the generator samples a Monday trip start inside configurable seasonal windows, then counts only Monday-Friday non-public-holiday days against the block. Weekends inside a trip do not consume leave. Marek's shifts and Ania's work/WFH are off during the trip; school is also suspended. Kuba and Zosia travel with their parents, so all four residents are away from home for every minute of the selected trip. The flags `family_vacation` and `vacation_block` make each outcome auditable. This is a household planning assumption, not a survey estimate.
+
 Worker round-trip commuting time is Uniform(45,73) minutes, centred on the CSV 59-minute participant reference. Split that total between outward and return travel; do not give each leg 59 minutes. Reserve a 30-minute on-shift meal for Marek. No commute is generated for home-working days.
 
 School starts at 08:00 on weekdays outside public/school holidays. School finish is sampled uniformly between 13:30 and 15:00, travel is 10-30 minutes each way, and lunch is 12:00-12:30 at school. These are assumptions. Ages and supervision requirements are unspecified: the model does not validate whether a child may safely stay home without an adult.
@@ -108,11 +110,13 @@ Cycle profiles use higher initial heating and later reheating phases; normalise 
 
 Represent the house as one well-mixed thermal zone. It is a reduced model, not an EnergyPlus building reconstruction. Fabric loss per floor area, air exchange, thermal capacitance and effective solar aperture are uncertain inputs. The complete default parameter catalogue follows this specification. In sample mode numeric values stay fixed, distributions are drawn once and overrides take precedence. In manual mode every distributed field must be supplied as a number or override; unresolved distributions cause an error.
 
+The default 100 m2 scenario assumes an improved envelope: fabric loss is sampled from Triangular(0.35, 0.50, 0.70) W/m2K and base air exchange from Triangular(0.15, 0.25, 0.40) 1/h. Thermal capacity is intentionally unchanged because insulation and thermal mass are different physical properties. These are scenario assumptions, to be replaced by measured heat-loss and temperature-response calibration when available.
+
 FORMULA: C_house[kWh/K] = floor_area * capacity_Wh_per_m2K / 1000
 
 FORMULA: H[kW/K] = (floor_area * fabric_W_per_m2K + 0.33 * volume_m3 * ACH) / 1000
 
-Air exchange is base ACH plus wind_ach_per_ms times wind. When someone is awake at home, indoor temperature exceeds 25 C and outdoor air is cooler, add the configured window-opening ACH. This is a deterministic comfort assumption. There is no mechanical cooling. Weather may therefore cause summer overheating.
+Air exchange is base ACH plus wind_ach_per_ms times wind. When someone is awake at home, indoor temperature exceeds 25 C and outdoor air is cooler, add the configured window-opening ACH. Between 22:00 and 06:00 in the warm season, April-October, add 4.0 ACH when at least one resident is home, indoor temperature is at least 23 C and outdoor air is at least 1 C cooler. This represents deliberate night ventilation; it is passive cooling and uses no electricity. `night_ventilation_active_fraction` reports the fraction of each hour for which this condition holds. There is no mechanical cooling, so heatwaves can still cause overheating.
 
 FORMULA: C * dT/dt = H*(T_out - T) + Q_heater + Q_solar + Q_internal
 
@@ -152,7 +156,7 @@ For each adult and implemented reference activity, compare realised daily partic
 
 Use the dashboard to inspect individual devices, aggregate peaks, sleep and activity patterns, occupancy, annual seasonality, cold-weather saturation, tank recovery, and source-reference deviations. Redesign assumptions if the scenario is implausible. A plausible annual total alone cannot validate timing or individual appliances.
 
-Material limits include a single thermal zone; no cooling plant; assumed shift roster and work attendance; no sickness or annual leave; no age-specific child supervision; independent adult proposals; simplified shared devices, loading/unloading and fridge cycling; no observed duration distribution; outdated technology behaviour in the survey reference; and approximate conversion of instantaneous radiation to hourly heat gain. Parameters and data must be calibrated before claiming a validated digital twin.
+Material limits include a single thermal zone; no cooling plant and no room-level airflow; assumed shift roster and work attendance; no sickness or leave beyond the configured shared 10+5+5 trips; no age-specific child supervision; independent adult proposals; simplified shared devices, loading/unloading and fridge cycling; no observed duration distribution; outdated technology behaviour in the survey reference; and approximate conversion of instantaneous radiation to hourly heat gain. Parameters and data must be calibrated before claiming a validated digital twin.
 
 ## Sources
 

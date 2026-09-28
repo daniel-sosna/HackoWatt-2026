@@ -12,7 +12,7 @@ from hackowatt.behaviour import ACTIVITIES, PEOPLE
 
 def build_dashboard(folder):
     folder=Path(folder)
-    df=pd.read_csv(folder/'hourly.csv')
+    df=pd.read_csv(folder/'hourly.csv',dtype={'vacation_block':'string'},low_memory=False)
     people=pd.read_csv(folder/'residents_hourly.csv')
     report=json.loads((folder/'validation.json').read_text())
     energy=[c for c in df if c.endswith('_kwh') and c not in ('total_kwh','hot_water_unmet_kwh','thermal_residual_kwh')]
@@ -21,6 +21,8 @@ def build_dashboard(folder):
           'total':df.total_kwh.round(4).tolist(),'outdoor':df.temperature_2m.round(2).tolist(),
           'indoor':df.indoor_c.round(2).tolist(),'tank':df.tank_c.round(2).tolist(),
           'setpoint':df.setpoint_c.round(2).tolist(),'occupancy':df.occupancy_mean.round(3).tolist(),
+          'family_vacation':df.family_vacation.astype(bool).tolist(),
+          'night_ventilation':df.night_ventilation_active_fraction.round(3).tolist(),
           'comparison':pd.read_csv(folder/'eurostat_comparison.csv').replace({np.nan:None}).to_dict('records'),
           'report':report}
     for person in PEOPLE:

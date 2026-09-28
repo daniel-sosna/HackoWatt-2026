@@ -70,7 +70,7 @@ for offset in range(0,len(rows),19):
 
 def footer(canvas,doc):
     canvas.saveState();canvas.setFont('Body',8);canvas.setFillColor(colors.HexColor('#617080'))
-    canvas.drawString(1.8*cm,.8*cm,'HackoWatt Family | Implemented rules v3.0')
+    canvas.drawString(1.8*cm,.8*cm,'HackoWatt Family | Implemented rules v3.1')
     canvas.drawRightString(A4[0]-1.8*cm,.8*cm,str(doc.page));canvas.restoreState()
 
 target=ROOT/'docs/rules_v3.pdf'

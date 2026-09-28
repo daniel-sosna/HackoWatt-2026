@@ -103,7 +103,7 @@ class HistogramBoostingRegressor:
 
 
 def load_hourly(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
+    df = pd.read_csv(path, dtype={'vacation_block': 'string'}, low_memory=False)
     utc = pd.to_datetime(df['timestamp_utc'], utc=True, errors='raise')
     if not utc.is_monotonic_increasing or utc.duplicated().any():
         raise ValueError('hourly.csv must have sorted unique UTC timestamps')
@@ -130,7 +130,9 @@ def exogenous_frame(df: pd.DataFrame) -> pd.DataFrame:
     result['is_weekend'] = (dow >= 5).astype(float)
     for name in ['temperature_2m', 'cloud_cover', 'relative_humidity_2m', 'wind_speed_10m',
                  'precipitation', 'snowfall', 'shortwave_radiation_instant',
-                 'public_holiday', 'school_break', 'school_day', 'ania_wfh']:
+                 'public_holiday', 'school_break', 'school_day', 'ania_wfh', 'family_vacation']:
+        if name not in df:
+            continue
         result[name] = pd.to_numeric(df[name], errors='raise').astype(float)
     result['heating_degree_c'] = np.maximum(0, 18 - result['temperature_2m'])
     for name in ['morning', 'evening', 'night', 'off']:

@@ -112,7 +112,12 @@
     "walking_rain_adjustment": -0.06,
     "walking_cold_adjustment": -0.03,
     "walking_wind_adjustment": -0.03,
-    "walking_snow_adjustment": -0.03
+    "walking_snow_adjustment": -0.03,
+    "vacation_blocks": [
+      {"name": "summer", "workdays": 10, "start": "06-17", "end": "08-16"},
+      {"name": "winter", "workdays": 5, "start": "01-08", "end": "02-23"},
+      {"name": "spring", "workdays": 5, "start": "04-08", "end": "05-31"}
+    ]
   },
   "devices": {
     "fridge_daily_kwh": 1.0,
@@ -154,7 +159,16 @@
     "warmup_days": 7,
     "internal_electric_gain_fraction": 0.65,
     "person_awake_w": 75,
-    "person_sleep_w": 55
+    "person_sleep_w": 55,
+    "night_ventilation": {
+      "enabled": true,
+      "months": [4, 5, 6, 7, 8, 9, 10],
+      "start_hour": 22,
+      "end_hour": 6,
+      "minimum_indoor_c": 23.0,
+      "minimum_outdoor_delta_c": 1.0,
+      "additional_ach": 4.0
+    }
   },
   "calendar": {
     "apply_corrections": true

@@ -33,6 +33,38 @@ def calibrate_probabilities(base, delta):
             hi = mid
     return np.clip(base+delta+(lo+hi)/2, 0, 1)
 
+
+def schedule_family_vacations(day_labels, public, settings, rng):
+    """Return all-away calendar dates and reproducible named leave blocks.
+
+    A leave block consumes the stated number of Monday-Friday, non-public work
+    days for both parents. Weekends between those days are part of the trip but
+    do not consume leave. Starts are sampled from the configured seasonal
+    windows, so the fixed 10+5+5 allocation remains reproducible from the seed.
+    """
+    dates = pd.DatetimeIndex(pd.to_datetime(day_labels))
+    available_years = sorted(set(dates.year))
+    vacation = {}
+    for year in available_years:
+        for block in settings['vacation_blocks']:
+            lower = pd.Timestamp(f'{year}-{block["start"]}')
+            upper = pd.Timestamp(f'{year}-{block["end"]}')
+            candidates = []
+            for start in pd.date_range(lower, upper, freq='W-MON'):
+                workdays = [d for d in pd.date_range(start, upper, freq='D')
+                            if d.weekday() < 5 and d.strftime('%Y-%m-%d') not in public]
+                if len(workdays) >= int(block['workdays']):
+                    candidates.append((start, workdays[:int(block['workdays'])]))
+            if not candidates:
+                # The two buffer years around the supplied weather range do not
+                # contain a complete seasonal window and intentionally get none.
+                continue
+            start, leave_days = candidates[int(rng.integers(len(candidates)))]
+            name = f'{block["name"]}_{year}'
+            for date in pd.date_range(start, leave_days[-1], freq='D'):
+                vacation[date.strftime('%Y-%m-%d')] = name
+    return vacation
+
 def simulate_behaviour(weather, public, school_break, reference, config, rng):
     start = weather.index[0] - pd.Timedelta(days=2)
     stop = weather.index[-1] + pd.Timedelta(hours=1, days=2)
@@ -50,20 +82,23 @@ def simulate_behaviour(weather, public, school_break, reference, config, rng):
     shifts = {}
     wfh = {}
     anchor = pd.Timestamp(settings['shift_anchor_monday'])
+    vacations = schedule_family_vacations(day_labels, public, settings, rng)
     for d in day_labels:
         date = pd.Timestamp(d)
         week = (date - pd.Timedelta(days=date.weekday())).strftime('%Y-%m-%d')
         if week not in wfh:
-            candidates = [x.strftime('%Y-%m-%d') for x in pd.date_range(week, periods=5) if x.strftime('%Y-%m-%d') not in public]
+            candidates = [x.strftime('%Y-%m-%d') for x in pd.date_range(week, periods=5)
+                          if x.strftime('%Y-%m-%d') not in public and x.strftime('%Y-%m-%d') not in vacations]
             k = min(int(rng.choice(settings['wfh_days_choices'])),len(candidates))
             wfh[week] = set(rng.choice(candidates,k,replace=False))
         shift = settings['shift_cycle'][((date-anchor).days//7) % len(settings['shift_cycle'])]
-        if date.weekday() >= 5 or (d in public and rng.random() >= settings['holiday_shift_probability']):
+        if d in vacations or date.weekday() >= 5 or (d in public and rng.random() >= settings['holiday_shift_probability']):
             shift = 'off'
         shifts[d] = shift
         calendars.append({'date':d,'public_holiday':d in public,'school_break':d in school_break,
-                          'school_day':date.weekday()<5 and d not in public and d not in school_break,
-                          'ania_wfh':d in wfh[week], 'marek_shift':shift})
+                          'family_vacation':d in vacations, 'vacation_block':vacations.get(d),
+                          'school_day':date.weekday()<5 and d not in public and d not in school_break and d not in vacations,
+                          'ania_wfh':d in wfh[week] and d not in vacations, 'marek_shift':shift})
     cal = {x['date']:x for x in calendars}
 
     def idx(d, minutes):
@@ -90,7 +125,7 @@ def simulate_behaviour(weather, public, school_break, reference, config, rng):
             reserve(0,b,b+trip-trip//2,'commute',False)
             reserve(0,a+4*60,a+4*60+30,'eating',False)
         date = pd.Timestamp(d)
-        if date.weekday()<5 and d not in public:
+        if date.weekday()<5 and d not in public and not c['family_vacation']:
             a,b = idx(d,480),idx(d,960)
             reserve(1,a,b,'work',c['ania_wfh'])
             reserve(1,idx(d,750),idx(d,780),'eating',c['ania_wfh'])
@@ -177,6 +212,8 @@ def simulate_behaviour(weather, public, school_break, reference, config, rng):
               ('tv',[(480,1410)],True),('computing',[(480,1410)],True),('gaming',[(480,1410)],True)]
     for di,d in enumerate(day_labels):
         inds=day_slices[d]
+        if cal[d]['family_vacation']:
+            continue
         for person in range(4):
             # Existing off-site lunch is part of the daily eating budget.
             already=int((activity[person,inds]==CODE['eating']).sum())
@@ -223,6 +260,12 @@ def simulate_behaviour(weather, public, school_break, reference, config, rng):
                 proposals.append({'date':d,'person':PEOPLE[person],'activity':name,'p_used':probability,
                                   'proposed_minutes':duration,'accepted_minutes':len(selected),
                                   'reason':'accepted' if len(selected)==duration else 'insufficient_free_time_or_partner'})
+    # The whole family is away for every calendar day inside a selected trip.
+    # Sleep/free activity is retained as a diary state, while no home activity
+    # can trigger domestic appliances or domestic hot-water draws.
+    for d in day_labels:
+        if cal[d]['family_vacation']:
+            home[:, day_slices[d]] = False
     keep=(index>=weather.index[0])&(index<weather.index[-1]+pd.Timedelta(hours=1))
     out_index=index[keep]
     full_dates=set(out_index.tz_convert('Europe/Warsaw').strftime('%Y-%m-%d'))

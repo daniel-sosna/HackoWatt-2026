@@ -90,22 +90,41 @@ def generate(root, config_path, output_override=None):
         'space_heating_within_capacity':bool((hourly.space_heating_kwh<=house['heating_capacity_kw']+1e-5).all()),
         'no_heat_pump_or_generation_columns':not any('pv_' in c or 'cop_' in c for c in hourly),
         'all_temperatures_finite':bool(np.isfinite(hourly[['indoor_c','tank_c']]).all().all())}
+    vacation_calendar = behaviour['calendar']
+    vacation_workdays = vacation_calendar[vacation_calendar.family_vacation &
+                                          (pd.to_datetime(vacation_calendar.date).dt.dayofweek < 5) &
+                                          ~vacation_calendar.public_holiday]
+    vacation_by_year = vacation_workdays.assign(year=pd.to_datetime(vacation_workdays.date).dt.year).groupby('year').size()
+    assertions.update({
+        'family_vacation_is_away':bool((hourly.loc[hourly.family_vacation,'occupancy_mean'] == 0).all()),
+        'twenty_vacation_workdays_per_parent_per_year':bool((vacation_by_year == 20).all()),
+    })
     if not all(assertions.values()):raise AssertionError(assertions)
-    report={'version':'3.0.0','seed':config['seed'],'weather':audit,'checks':assertions,
+    occupied = hourly.occupancy_mean > 0
+    awake_home = hourly.awake_at_home_mean > 0
+    report={'version':'3.1.0','seed':config['seed'],'weather':audit,'checks':assertions,
             'house':house,'device_totals_kwh':totals,'total_kwh':float(hourly.total_kwh.sum()),
             'indoor_min_c':float(hourly.indoor_min_c.min()),'indoor_max_c':float(hourly.indoor_max_c.max()),
+            'occupied_indoor_min_c':float(hourly.loc[occupied,'indoor_min_c'].min()),
+            'occupied_indoor_max_c':float(hourly.loc[occupied,'indoor_max_c'].max()),
+            'awake_home_indoor_max_c':float(hourly.loc[awake_home,'indoor_max_c'].max()),
+            'night_ventilation_hours':float(hourly.night_ventilation_active_fraction.sum()),
             'occupied_under_setpoint_degree_hours':float(hourly.unmet_comfort_degree_minutes.sum()/60),
             'hours_with_unmet_occupied_comfort':int((hourly.unmet_comfort_degree_minutes>0).sum()),
             'hot_water_unmet_kwh':float(hourly.hot_water_unmet_kwh.sum()),
             'proposed_activity_minutes':int(behaviour['proposals'].proposed_minutes.sum()),
             'rejected_activity_minutes':int((behaviour['proposals'].proposed_minutes-behaviour['proposals'].accepted_minutes).sum()),
+            'family_vacation_calendar_days':int(vacation_calendar.family_vacation.sum()),
+            'family_vacation_parental_workdays':int(len(vacation_workdays)),
+            'family_vacation_blocks':vacation_calendar.loc[vacation_calendar.family_vacation,
+                                                            ['vacation_block','date']].groupby('vacation_block').date.agg(['min','max']).reset_index().to_dict('records'),
             'source_sha256':hashes(list((root/'data/raw').iterdir())),
             'limitations':['Synthetic, uncalibrated household; passing checks does not validate realism.',
-                           'Single thermal zone; no room-level temperatures or cooling system.',
+                           'Single thermal zone; no room-level temperatures or cooling system. Summer cooling is passive night ventilation only.',
                            'Outing travel uses aggregate adult trip durations; no routes or travel modes are modeled.',
                            'One TV/desktop/console; concurrent residents are treated as shared use.',
                            'School dates are taken from the supplied regional file; no school-specific closure days.',
-                           'No annual leave, illness or unobserved long holidays; shifts are assumed.',
+                           'Annual leave is a configured 10+5+5 family-away schedule; illness and other long holidays are not modeled.',
                            'Hourly weather is held constant during each model hour; instantaneous radiation is a proxy.',
                            'Appliance events list triggered devices; continuously driven loads are in hourly.csv.']}
     for name,obj in [('resolved_house.json',house),('run_config.json',config),('validation.json',report)]:

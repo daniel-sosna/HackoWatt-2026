@@ -5,10 +5,10 @@
     "mode": "sample",
     "overrides": {},
     "parameters": {
-      "floor_area_m2": {"distribution": "triangular", "low": 100, "mode": 130, "high": 160},
+      "floor_area_m2": 100,
       "height_m": 2.6,
-      "fabric_loss_w_m2k": {"distribution": "triangular", "low": 0.65, "mode": 0.95, "high": 1.35},
-      "air_changes_per_hour": {"distribution": "triangular", "low": 0.25, "mode": 0.4, "high": 0.65},
+      "fabric_loss_w_m2k": {"distribution": "triangular", "low": 0.35, "mode": 0.5, "high": 0.7},
+      "air_changes_per_hour": {"distribution": "triangular", "low": 0.15, "mode": 0.25, "high": 0.4},
       "thermal_capacity_wh_m2k": {"distribution": "triangular", "low": 45, "mode": 70, "high": 100},
       "effective_solar_area_m2": {"distribution": "uniform", "low": 3, "high": 7},
       "heating_capacity_kw": 3.5,
@@ -40,7 +40,12 @@
     "dishwasher_probability": 0.6, "vacuum_fraction_cleaning": 0.25,
     "walking_free_day_adjustment": 0.06, "walking_rain_adjustment": -0.06,
     "walking_cold_adjustment": -0.03, "walking_wind_adjustment": -0.03,
-    "walking_snow_adjustment": -0.03
+    "walking_snow_adjustment": -0.03,
+    "vacation_blocks": [
+      {"name": "summer", "workdays": 10, "start": "06-17", "end": "08-16"},
+      {"name": "winter", "workdays": 5, "start": "01-08", "end": "02-23"},
+      {"name": "spring", "workdays": 5, "start": "04-08", "end": "05-31"}
+    ]
   },
   "devices": {
     "fridge_daily_kwh": 1.0, "router_kw": 0.012, "standby_kw": 0.04,
@@ -51,7 +56,21 @@
     "dishwasher_cycle_kwh": [0.8, 1.2], "dishwasher_minutes": 150,
     "charging_kwh_per_device": [0.005, 0.02], "cooking_mode_weights": [0.1, 0.55, 0.2, 0.15]
   },
-  "thermal": {"warmup_days": 7, "internal_electric_gain_fraction": 0.65, "person_awake_w": 75, "person_sleep_w": 55},
+  "thermal": {
+    "warmup_days": 7,
+    "internal_electric_gain_fraction": 0.65,
+    "person_awake_w": 75,
+    "person_sleep_w": 55,
+    "night_ventilation": {
+      "enabled": true,
+      "months": [4, 5, 6, 7, 8, 9, 10],
+      "start_hour": 22,
+      "end_hour": 6,
+      "minimum_indoor_c": 23.0,
+      "minimum_outdoor_delta_c": 1.0,
+      "additional_ach": 4.0
+    }
+  },
   "calendar": {"apply_corrections": true},
   "output": {"directory": "results/default"}
 }
