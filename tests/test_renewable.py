@@ -15,6 +15,11 @@ from hackowatt.renewable import (ECONOMIC_MODES, energy_balance,
 
 
 class RenewableEnergyTests(unittest.TestCase):
+    def test_dashboard_embeds_data_as_javascript_not_visible_text(self):
+        template = (ROOT / 'src' / 'hackowatt' / 'renewable_dashboard.html').read_text(
+            encoding='utf-8')
+        self.assertIn('<script>/* EMBED_DATA */</script>', template)
+
     def test_hackathon_tariff_and_energy_balance(self):
         index = pd.date_range('2025-01-01', periods=24, freq='h', tz='UTC')
         tariff = local_tariff(index, ECONOMIC_MODES['hackathon'])
