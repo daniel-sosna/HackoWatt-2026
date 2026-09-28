@@ -1,0 +1,31 @@
+POLAND PUBLIC HOLIDAYS (NON-WORKING DAYS) 2024-2025
+
+2024:
+2024-01-01 | Monday    | New Year's Day
+2024-01-06 | Saturday  | Epiphany
+2024-03-31 | Sunday    | Easter Sunday
+2024-04-01 | Monday    | Easter Monday
+2024-05-01 | Wednesday | Labour Day
+2024-05-03 | Friday    | Constitution Day
+2024-05-19 | Sunday    | Whit Sunday
+2024-05-30 | Thursday  | Corpus Christi
+2024-08-15 | Thursday  | Armed Forces Day / Assumption
+2024-11-01 | Friday    | All Saints' Day
+2024-11-11 | Monday    | Independence Day
+2024-12-25 | Wednesday | Christmas Day
+2024-12-26 | Thursday  | Second Day of Christmas
+
+2025:
+2025-01-01 | Wednesday | New Year's Day
+2025-01-06 | Monday    | Epiphany
+2025-04-20 | Sunday    | Easter Sunday
+2025-04-21 | Monday    | Easter Monday
+2025-05-01 | Thursday  | Labour Day
+2025-05-03 | Saturday  | Constitution Day
+2025-06-08 | Sunday    | Whit Sunday
+2025-06-19 | Thursday  | Corpus Christi
+2025-08-15 | Friday    | Armed Forces Day / Assumption
+2025-11-01 | Saturday  | All Saints' Day
+2025-11-11 | Tuesday   | Independence Day
+2025-12-25 | Thursday  | Christmas Day
+2025-12-26 | Friday    | Second Day of Christmas

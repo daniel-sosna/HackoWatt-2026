@@ -1,0 +1,165 @@
+{
+  "seed": 20260928,
+  "weather": {
+    "time_mode": "Europe/Warsaw",
+    "wind_unit": "km/h",
+    "dst_policy": "drop_nonexistent_repeat_ambiguous"
+  },
+  "house": {
+    "mode": "manual",
+    "overrides": {
+      "floor_area_m2": 132.71805657836344,
+      "height_m": 2.6,
+      "fabric_loss_w_m2k": 0.8003202418247044,
+      "air_changes_per_hour": 0.4239201961970614,
+      "thermal_capacity_wh_m2k": 85.26959281222634,
+      "effective_solar_area_m2": 6.751463875835582,
+      "heating_capacity_kw": 3.5,
+      "heating_efficiency": 1.0,
+      "occupied_setpoint_c": 21.0,
+      "sleep_setpoint_c": 18.5,
+      "away_setpoint_c": 17.0,
+      "thermostat_deadband_c": 0.6,
+      "initial_indoor_c": 20.0,
+      "window_open_ach": 2.0,
+      "window_open_above_c": 25.0,
+      "wind_ach_per_ms": 0.015,
+      "tank_volume_l": 183.17511739986068,
+      "boiler_power_kw": 2.0,
+      "tank_loss_w_k": 1.6,
+      "tank_setpoint_c": 55.0,
+      "tank_deadband_c": 5.0,
+      "water_use_temperature_c": 40.0,
+      "initial_tank_c": 55.0
+    },
+    "parameters": {
+      "floor_area_m2": {
+        "distribution": "triangular",
+        "low": 100,
+        "mode": 130,
+        "high": 160
+      },
+      "height_m": 2.6,
+      "fabric_loss_w_m2k": {
+        "distribution": "triangular",
+        "low": 0.65,
+        "mode": 0.95,
+        "high": 1.35
+      },
+      "air_changes_per_hour": {
+        "distribution": "triangular",
+        "low": 0.25,
+        "mode": 0.4,
+        "high": 0.65
+      },
+      "thermal_capacity_wh_m2k": {
+        "distribution": "triangular",
+        "low": 45,
+        "mode": 70,
+        "high": 100
+      },
+      "effective_solar_area_m2": {
+        "distribution": "uniform",
+        "low": 3,
+        "high": 7
+      },
+      "heating_capacity_kw": 3.5,
+      "heating_efficiency": 1.0,
+      "occupied_setpoint_c": 21.0,
+      "sleep_setpoint_c": 18.5,
+      "away_setpoint_c": 17.0,
+      "thermostat_deadband_c": 0.6,
+      "initial_indoor_c": 20.0,
+      "window_open_ach": 2.0,
+      "window_open_above_c": 25.0,
+      "wind_ach_per_ms": 0.015,
+      "tank_volume_l": {
+        "distribution": "triangular",
+        "low": 120,
+        "mode": 150,
+        "high": 200
+      },
+      "boiler_power_kw": 2.0,
+      "tank_loss_w_k": 1.6,
+      "tank_setpoint_c": 55.0,
+      "tank_deadband_c": 5.0,
+      "water_use_temperature_c": 40.0,
+      "initial_tank_c": 55.0
+    }
+  },
+  "behaviour": {
+    "duration_distribution": "gamma",
+    "duration_cv": 0.25,
+    "shift_cycle": [
+      "morning",
+      "evening",
+      "night"
+    ],
+    "shift_anchor_monday": "2024-01-01",
+    "holiday_shift_probability": 0.6,
+    "wfh_days_choices": [
+      2,
+      3
+    ],
+    "child_sleep_minutes": 540,
+    "child_screen_school_probability": 0.7,
+    "child_screen_free_probability": 0.9,
+    "shower_probability": 0.85,
+    "shower_flow_l_min": 6.0,
+    "dishwasher_probability": 0.6,
+    "vacuum_fraction_cleaning": 0.25,
+    "walking_free_day_adjustment": 0.06,
+    "walking_rain_adjustment": -0.06,
+    "walking_cold_adjustment": -0.03,
+    "walking_wind_adjustment": -0.03,
+    "walking_snow_adjustment": -0.03
+  },
+  "devices": {
+    "fridge_daily_kwh": 1.0,
+    "router_kw": 0.012,
+    "standby_kw": 0.04,
+    "tv_kw": 0.11,
+    "console_kw": 0.15,
+    "desktop_kw": 0.18,
+    "laptop_kw": 0.06,
+    "lighting_max_kw": 0.16,
+    "kettle_kw": 2.0,
+    "coffee_kw": 1.2,
+    "oven_kw": 2.2,
+    "hob_kw": 2.0,
+    "microwave_kw": 1.0,
+    "vacuum_kw": 0.7,
+    "washing_machine_cycle_kwh": [
+      0.6,
+      1.0
+    ],
+    "washing_machine_minutes": 90,
+    "dishwasher_cycle_kwh": [
+      0.8,
+      1.2
+    ],
+    "dishwasher_minutes": 150,
+    "charging_kwh_per_device": [
+      0.005,
+      0.02
+    ],
+    "cooking_mode_weights": [
+      0.1,
+      0.55,
+      0.2,
+      0.15
+    ]
+  },
+  "thermal": {
+    "warmup_days": 7,
+    "internal_electric_gain_fraction": 0.65,
+    "person_awake_w": 75,
+    "person_sleep_w": 55
+  },
+  "calendar": {
+    "apply_corrections": true
+  },
+  "output": {
+    "directory": "results/manual"
+  }
+}

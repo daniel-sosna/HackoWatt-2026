@@ -1,0 +1,5 @@
+{
+  "add_public_holidays": ["2025-12-24"],
+  "reason": "Christmas Eve became a public holiday from 2025; absent from the supplied file.",
+  "source": "https://www.gov.pl/web/rodzina/wolna-wigilia-od-przyszlego-roku"
+}
