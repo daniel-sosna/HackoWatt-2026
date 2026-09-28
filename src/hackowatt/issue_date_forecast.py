@@ -102,3 +102,33 @@ def write_issue_date_forecast(result: ForecastResult, output_dir: Path) -> None:
     result.forecast.to_csv(output_dir/'forecast.csv', index=False, float_format='%.6f')
     result.backtest_actual.to_frame().to_csv(output_dir/'backtest_actual.csv', index=False, float_format='%.6f')
     (output_dir/'manifest.json').write_text(json.dumps(result.manifest, indent=2), encoding='utf-8')
+    _write_comparison_chart(result, output_dir/'forecast_vs_actual.png')
+
+
+def _write_comparison_chart(result: ForecastResult, target: Path) -> None:
+    """Render the historical backtest comparison in a directly shareable PNG."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
+
+    timestamps = pd.to_datetime(result.forecast['timestamp_local'])
+    fig, axis = plt.subplots(figsize=(15, 5.5))
+    axis.plot(timestamps, result.backtest_actual, color='#151515', linewidth=2.5,
+              label='Actual load')
+    forecast_colour = '#FF006E' if result.model_id == 'direct_random_forest' else '#3A86FF'
+    axis.plot(timestamps, result.forecast['forecast_kwh'], color=forecast_colour,
+              linewidth=2.0, label=f"Forecast: {result.model_id.replace('_', ' ')}")
+    axis.set(
+        title=f"Actual and forecast load: {result.manifest['horizon_hours']}-hour horizon",
+        xlabel='Polish local time',
+        ylabel='Energy per hour (kWh)',
+    )
+    axis.grid(alpha=0.25)
+    axis.legend(loc='upper right')
+    locator = mdates.AutoDateLocator(minticks=5, maxticks=10)
+    axis.xaxis.set_major_locator(locator)
+    axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+    fig.tight_layout()
+    fig.savefig(target, dpi=160)
+    plt.close(fig)

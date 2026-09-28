@@ -48,8 +48,9 @@ future actual load as a forecast feature.
   --output results/issue_date_forecast
 ```
 
-The command writes `forecast.csv`, `backtest_actual.csv`, and `manifest.json`.
-It does not alter `hourly.csv`.
+The command writes `forecast.csv`, `backtest_actual.csv`, `manifest.json`, and
+`forecast_vs_actual.png`. The PNG compares actual and predicted load with
+clearly different colours. It does not alter `hourly.csv`.
 
 ## PyCharm one-file runner
 

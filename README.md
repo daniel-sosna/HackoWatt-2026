@@ -53,6 +53,7 @@ and Modular CatBoost for 72 or 168 hours. It writes:
 
 - `forecast.csv` with the selected forecast and predicted occupancy;
 - `backtest_actual.csv` separately for historical evaluation;
+- `forecast_vs_actual.png` with actual and predicted load on one chart;
 - `manifest.json` with the issue time, training-row count, model policy, and
   error metrics.
 

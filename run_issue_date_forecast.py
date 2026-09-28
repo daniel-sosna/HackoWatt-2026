@@ -42,6 +42,7 @@ def main() -> None:
     print(f'Forecast starts: {result.manifest["forecast_start_local"]}')
     print(f'Horizon: {HORIZON_HOURS} hours')
     print(f'Forecast file: {OUTPUT_DIRECTORY / "forecast.csv"}')
+    print(f'Comparison chart: {OUTPUT_DIRECTORY / "forecast_vs_actual.png"}')
     print(f'Manifest file: {OUTPUT_DIRECTORY / "manifest.json"}')
 
 
