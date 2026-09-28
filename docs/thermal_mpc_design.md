@@ -27,10 +27,12 @@ resolution. It includes:
   loss, heater power, setpoint, and deadband;
 - comfort, hot-water shortfall, and energy-balance diagnostics.
 
-This is a sound simulation baseline. The renewable dashboard currently bypasses
-those states and treats 15% of space heating and 50% of water heating as movable
-energy. Those two percentages are scenario proxies, not validated physical
-flexibility. They should be replaced by the controller below.
+The renewable dashboard now uses an hourly version of the 1R1C building and
+well-mixed tank states over its 24-hour forecast. A bounded beam search compares
+heater/boiler on/off actions, carries temperatures forward, and penalises room
+or tank shortfalls. It is an explainable first controller for the demo. The
+minute simulator remains the reference for validation, and real deployment
+still requires sensor calibration and the richer models below.
 
 ## Recommended model hierarchy
 
@@ -212,16 +214,13 @@ approved actions.
 
 ## Implementation order
 
-1. Replace the dashboard heating/tank percentage proxy with the current
-   stateful 1R1C and mixed-tank equations and a 24-hour rolling controller.
-2. Add issued-at forecast inputs and enforce the no-future-observation rule.
-3. Add temperature/tank/comfort charts and compare the optimized schedule with
-   the thermostat baseline.
-4. Add bounded parameter fitting when real sensor data is available.
-5. Upgrade the building to 2R2C and the tank to three nodes; compare out-of-sample
+1. Connect a scheduled service that refreshes the implemented issued forecast
+   and sensor-state contracts before each control run.
+2. Add bounded parameter fitting when real sensor data is available.
+3. Upgrade the building to 2R2C and the tank to three nodes; compare out-of-sample
    prediction and controller KPIs before adoption.
-6. Add an explicit heat-pump mode with a supplied performance map.
-7. Validate with OCHRE or BOPTEST and run replay tests for forecast errors,
+4. Add an explicit heat-pump mode with a supplied performance map.
+5. Validate with OCHRE or BOPTEST and run replay tests for forecast errors,
    missing sensors, DST, outages, and unusual occupancy.
 
 ## Sources

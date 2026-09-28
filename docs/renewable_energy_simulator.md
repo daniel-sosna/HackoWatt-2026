@@ -7,6 +7,7 @@ habits with learned, user-editable activity shifting.
 
 ```powershell
 python main.py generate
+python main.py forecast
 python main.py renewable-dashboard
 ```
 
@@ -108,14 +109,38 @@ The number of residents caps the editable hourly presence plan. Input cards
 label whether a value can come from an automatic API, a meter or CSV, learned
 history, user input, or a sensor.
 
-Space heating and the hot-water tank are available as disabled-by-default proxy
-optimisations. The proxy exposes only 15% of hourly heating and 50% of hourly
-tank energy as potentially movable and preserves their total kWh. It is clearly
-marked **model validation required** because final dispatch must be checked by a
-stateful model against indoor comfort, heater capacity, tank temperature and
-hot-water demand. Proxy results must not be presented as a validated controller.
-The dashboard states that control hardware/software cost is not included in
-package payback.
+Space heating and the hot-water tank are removed from appliance shifting. The
+Household tab instead runs a 24-hour stateful controller with the repository's
+one-zone RC heat balance and well-mixed tank equations. It carries indoor and
+tank temperature between hours, tests heater/boiler actions, penalises comfort
+or service shortfall, and compares the selected plan with thermostat control.
+The result remains advisory because the supplied temperatures and house
+parameters are synthetic. The dashboard states that control hardware/software
+cost is not included in package payback.
+
+## Forecast and live-data contracts
+
+`python main.py forecast` supplies the default Tomorrow view from the latest
+rolling-origin validation horizon. The page shows demand, PV, tariff, an
+empirical 10--90% residual interval, forecast issue time, WAPE, peak-time error,
+and the components driving the largest predicted peaks. Recorded weather in
+this validation output is clearly labelled as a perfect-weather assumption.
+
+A real provider or team service can replace that backtest without changing the
+interface:
+
+```powershell
+python main.py renewable-dashboard `
+  --issued-forecast results/team/issued_forecast.csv `
+  --sensor-state results/team/sensor_state.json
+```
+
+The issued forecast requires hourly, increasing `timestamp_utc`, `load_kwh`,
+`outdoor_c`, `wind_ms`, and `radiation_wm2` for at least 24 hours. Optional
+columns are `issued_at_utc`, `model_id`, `lower_kwh`, `upper_kwh`, `base_kwh`,
+`behaviour_kwh`, `space_heating_kwh`, `water_heating_kwh`, and
+`hot_water_draw_l`. Sensor JSON accepts `indoor_c`, `tank_c`, and an optional
+`issued_at_utc`. The active source and uncertainty status remain visible.
 
 ## Colleague model contract
 
@@ -161,6 +186,9 @@ after subsidy; users must enter a value appropriate to their eligibility.
 - Hourly matching can overstate self-consumption relative to finer settlement.
 - The scheduling algorithm is a transparent greedy optimiser for the demo, not
   a proof of the global optimum.
+- The thermal controller uses a transparent 1R1C building and one-node tank with
+  hourly binary actions. A calibrated 2R2C/three-node model remains the product
+  upgrade after real sensors are available.
 - Poland-mode defaults are illustrative editable values, not a financial offer.
 
 ## Reviewed sources

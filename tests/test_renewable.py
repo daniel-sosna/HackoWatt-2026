@@ -12,7 +12,8 @@ from hackowatt.renewable import (ECONOMIC_MODES, energy_balance,
                                  learn_habit_constraints, local_tariff,
                                  normalized_pv_profile,
                                  prepare_flexible_events)
-from hackowatt.components.renewable_energy import apply_model_profile
+from hackowatt.components.renewable_energy import (apply_model_profile,
+                                                    build_issued_forecast_payload)
 
 
 class RenewableEnergyTests(unittest.TestCase):
@@ -114,6 +115,32 @@ class RenewableEnergyTests(unittest.TestCase):
             self.assertEqual(result.attrs['load_source'], 'model profile: team-v1')
         finally:
             path.unlink(missing_ok=True)
+
+    def test_issued_forecast_and_sensor_contract(self):
+        index = pd.date_range('2026-09-29', periods=24, freq='h', tz='UTC')
+        forecast = pd.DataFrame({
+            'timestamp_utc': index, 'load_kwh': np.linspace(.5, 2, 24),
+            'outdoor_c': np.linspace(-5, 8, 24), 'wind_ms': 2,
+            'radiation_wm2': np.maximum(0, 700 * np.sin(np.arange(24) * np.pi / 24)),
+            'model_id': 'team-live-v1',
+        })
+        folder = ROOT / 'results'
+        forecast_path, sensor_path = folder / 'issued-test.csv', folder / 'sensor-test.json'
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            forecast.to_csv(forecast_path, index=False)
+            sensor_path.write_text('{"indoor_c": 20.7, "tank_c": 51}', encoding='utf-8')
+            payload = build_issued_forecast_payload(forecast_path, sensor_path)
+            self.assertTrue(payload['available'])
+            self.assertTrue(payload['isLive'])
+            self.assertEqual(payload['modelId'], 'team-live-v1')
+            self.assertEqual(payload['initialIndoorC'], 20.7)
+            self.assertEqual(payload['initialTankC'], 51)
+            self.assertEqual(len(payload['pvKwhPerKwpAt1000Yield']), 24)
+            self.assertEqual(payload['outdoorC'][0], -5)
+        finally:
+            forecast_path.unlink(missing_ok=True)
+            sensor_path.unlink(missing_ok=True)
 
 
 if __name__ == '__main__':
