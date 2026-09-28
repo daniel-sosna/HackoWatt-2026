@@ -12,6 +12,7 @@ from hackowatt.renewable import (ECONOMIC_MODES, energy_balance,
                                  learn_habit_constraints, local_tariff,
                                  normalized_pv_profile,
                                  prepare_flexible_events)
+from hackowatt.components.renewable_energy import apply_model_profile
 
 
 class RenewableEnergyTests(unittest.TestCase):
@@ -54,6 +55,7 @@ class RenewableEnergyTests(unittest.TestCase):
         self.assertEqual(learned['dishwasher']['events'], 3)
         self.assertLess(learned['washing_machine']['earliest_start_hour'],
                         learned['washing_machine']['latest_finish_hour'])
+        self.assertEqual(learned['space_heating']['automation'], 'model-required')
 
     def test_flexible_event_encoding_preserves_energy_and_base_load(self):
         index = pd.date_range('2025-01-01', periods=8, freq='h', tz='UTC')
@@ -75,6 +77,43 @@ class RenewableEnergyTests(unittest.TestCase):
         start = encoded[0]['startIndex']
         rebuilt[start:start + len(encoded[0]['profile'])] += encoded[0]['profile']
         np.testing.assert_allclose(rebuilt, hourly.total_kwh, atol=1e-6)
+
+    def test_extended_device_and_thermal_proxy_encoding(self):
+        index = pd.date_range('2025-01-01', periods=5, freq='h', tz='UTC')
+        hourly = pd.DataFrame({
+            'timestamp_utc': index, 'total_kwh': [1, 1, 1, 1, 1],
+            'space_heating_kwh': [.4, 0, 0, 0, 0],
+            'water_heater_kwh': [0, .6, 0, 0, 0],
+        })
+        events = pd.DataFrame({
+            'device': ['tv'], 'person': ['household'],
+            'start_utc': ['2025-01-01T02:00:00+00:00'],
+            'end_utc': ['2025-01-01T03:00:00+00:00'],
+            'duration_minutes': [60], 'energy_kwh': [.11],
+            'trigger': ['scheduled_screen_or_work'],
+        })
+        encoded, base = prepare_flexible_events(hourly, events)
+        self.assertEqual({row['category'] for row in encoded},
+                         {'tv', 'space_heating', 'water_heater'})
+        self.assertEqual(sum(row['proxy'] for row in encoded), 2)
+        self.assertAlmostEqual(base.sum() + sum(row['energyKwh'] for row in encoded), 5, places=5)
+
+    def test_colleague_model_profile_contract(self):
+        index = pd.date_range('2025-01-01', periods=3, freq='h', tz='UTC')
+        hourly = pd.DataFrame({'timestamp_utc': index, 'total_kwh': [1., 1., 1.],
+                               'occupancy_mean': [1., 1., 1.]})
+        profile = pd.DataFrame({'timestamp_utc': index, 'load_kwh': [2., 3., 4.],
+                                'occupancy_people': [0, 2, 4], 'model_id': ['team-v1'] * 3})
+        path = ROOT / 'results' / 'model-profile-test.csv'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            profile.to_csv(path, index=False)
+            result = apply_model_profile(hourly, path)
+            self.assertEqual(result.total_kwh.tolist(), [2., 3., 4.])
+            self.assertEqual(result.occupancy_mean.tolist(), [0., 2., 4.])
+            self.assertEqual(result.attrs['load_source'], 'model profile: team-v1')
+        finally:
+            path.unlink(missing_ok=True)
 
 
 if __name__ == '__main__':

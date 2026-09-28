@@ -75,8 +75,11 @@ capacities, reports all five investment outputs required by the challenge, and
 shows payback for current habits and learned activity shifting. It includes
 separate Hackathon and editable Poland economic modes. Run `generate` first so
 the simulator can learn washing-machine and dishwasher defaults from
-`appliance_events.csv`. The formulas, terminology and limitations are documented
-in `docs/renewable_energy_simulator.md`.
+`appliance_events.csv`. The simulator also provides device-level usage insights,
+concrete scheduling recommendations, editable weekday/weekend presence and an
+optional `--model-profile` adapter for a colleague's load/occupancy model. The
+formulas, terminology, integration contract and limitations are documented in
+`docs/renewable_energy_simulator.md`.
 
 ## Sources and time handling
 

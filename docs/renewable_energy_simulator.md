@@ -21,6 +21,11 @@ cost, €0.08/kWh export value, 1% annual operating cost and the stated four
 time-of-use purchase prices. Its payback is deliberately simple so team results
 remain comparable.
 
+The €1,300/kWp value is not a market quote. It comes directly from
+`docs/HackoWatt-Common-Challenge-Assumptions.pdf` and is shown with that source
+inside the interface. Poland mode deliberately labels its starting installation
+price as an illustrative editable planning value.
+
 **Poland mode** exposes planning inputs for retail purchase price, net-billing
 export value, subsidy, effective tax benefit, PV degradation, discount rate,
 tariff growth, analysis horizon and inverter replacement. These values are
@@ -65,11 +70,52 @@ observed window becomes a default only. The user can edit:
 - latest finish;
 - maximum shift from the historical start.
 
+The same interface exposes opt-in recommendations for cooking, TV/console and
+computer use. These are marked **ask first** because moving them changes a human
+activity rather than an unattended appliance cycle. A device selector shows its
+typical 24-hour energy profile, annual energy, busiest hour and event count.
+
+The recommendations panel reports concrete historical examples as
+`original time -> proposed time`, together with the moved kWh, reason and
+estimated value. Results can be filtered by device.
+
 The browser optimiser moves complete non-interruptible cycle profiles, preserves
 their kWh and prevents overlapping cycles on the same physical appliance. It
-does not shift space heating or the hot-water tank because those systems need a
-stateful thermal and comfort optimisation. The dashboard states that control
-hardware/software cost is not included in package payback.
+uses an editable 24-hour presence plan for weekdays and weekends so cooking,
+screen and computer recommendations occur only while somebody is home. Changing
+presence constrains recommendations; it does not invent a new consumption
+profile by itself.
+
+Space heating and the hot-water tank are available as disabled-by-default proxy
+optimisations. The proxy exposes only 15% of hourly heating and 50% of hourly
+tank energy as potentially movable and preserves their total kWh. It is clearly
+marked **model validation required** because final dispatch must be checked by a
+stateful model against indoor comfort, heater capacity, tank temperature and
+hot-water demand. Proxy results must not be presented as a validated controller.
+The dashboard states that control hardware/software cost is not included in
+package payback.
+
+## Colleague model contract
+
+A forecast or controller from another team member can replace the dashboard's
+load and occupancy input without changing the UI:
+
+```powershell
+python main.py renewable-dashboard --model-profile results/team/model_profile.csv
+```
+
+The CSV contract is:
+
+| Column | Requirement |
+|---|---|
+| `timestamp_utc` | Required, unique, same physical-hour timeline as `hourly.csv` |
+| `load_kwh` | Required, finite nonnegative predicted or controlled load |
+| `occupancy_people` | Optional, 0--4 people |
+| `model_id` | Optional, one model identifier shown in the interface |
+| `issued_at_utc` | Optional provenance field reserved for forecast issue time |
+
+Exact timestamp matching prevents a model result from being silently shifted by
+an hour or joined across the wrong daylight-saving transition.
 
 ## Investment formulas
 
