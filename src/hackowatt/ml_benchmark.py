@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 import pickle
+import shutil
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -584,3 +586,103 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
     }
     (output_dir/'benchmark_spec.json').write_text(json.dumps(spec, indent=2), encoding='utf-8')
     return occupancy_metrics, load_metrics, spec
+
+
+SELECTED_MODELS = {
+    24: 'direct_random_forest',
+    72: 'modular_catboost',
+    168: 'modular_catboost',
+}
+
+
+def _create_selected_prediction_charts(output_dir: Path, forecasts: dict[int, pd.DataFrame]) -> None:
+    """Create only the three charts belonging to the approved model policy."""
+    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
+
+    for horizon, frame in forecasts.items():
+        times = pd.to_datetime(frame['timestamp_local'])
+        fig, axis = plt.subplots(figsize=(16, 5))
+        axis.plot(times, frame['actual_total_kwh'], color='#202020', linewidth=2.4,
+                  label='Actual total load')
+        axis.plot(times, frame['forecast_kwh'], color='#FF006E' if horizon == 24 else '#3A86FF',
+                  linewidth=1.7, label=f"Selected forecast: {frame['model_id'].iloc[0].replace('_', ' ')}")
+        axis.set(title=f'Selected load forecast: {horizon}-hour horizon',
+                 ylabel='Energy per hour (kWh)', xlabel='Polish local time')
+        axis.grid(alpha=.25)
+        axis.legend(loc='upper right')
+        locator = mdates.AutoDateLocator(minticks=5, maxticks=10)
+        axis.xaxis.set_major_locator(locator)
+        axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+        fig.tight_layout()
+        fig.savefig(output_dir/f'forecast_{horizon}h.png', dpi=160)
+        plt.close(fig)
+
+
+def create_selected_prediction_package(hourly_path: Path, output_dir: Path,
+                                       forecast_start_local: str) -> pd.DataFrame:
+    """Train the benchmark privately and publish only the approved forecast files.
+
+    The package deliberately contains exogenous forecast inputs and selected
+    outputs only.  Training copies, alternative models, and intermediate model
+    files are placed in a temporary directory and are discarded after selection.
+    """
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    input_dir = output_dir/'input'
+    output_data_dir = output_dir/'output'
+    input_dir.mkdir(parents=True)
+    output_data_dir.mkdir()
+
+    with tempfile.TemporaryDirectory(prefix='hackowatt_selected_prediction_') as temporary:
+        working_dir = Path(temporary)
+        _, load_metrics, spec = run_model_benchmark(
+            hourly_path, working_dir, forecast_start_local, horizon_hours=168)
+        prepared = prepare_training_data(hourly_path, working_dir/'input_copy', forecast_start_local, 168)
+        loads = pd.read_csv(working_dir/'load_predictions.csv')
+        occupancy = pd.read_csv(working_dir/'occupancy_predictions.csv')
+
+        feature_input = prepared.base_features.iloc[prepared.cutoff:prepared.cutoff+168].copy()
+        feature_input.insert(0, 'timestamp_local', feature_input.index.tz_convert('Europe/Warsaw').astype(str))
+        feature_input.insert(0, 'timestamp_utc', feature_input.index.astype(str))
+        feature_input.to_csv(input_dir/'forecast_features.csv', index=False, float_format='%.6f')
+
+        issue = {
+            'forecast_start_local': spec['forecast_start_local'],
+            'source_hourly_csv': str(hourly_path),
+            'selected_models_by_horizon_hours': SELECTED_MODELS,
+            'input_file': 'input/forecast_features.csv',
+            'input_rule': 'The input contains only known calendar and weather features. Occupancy is forecast internally; future measured occupancy, load, tank temperature, and water draw are excluded.',
+            'output_rule': 'Each output CSV is a bounded backtest forecast. actual_total_kwh is retained only to evaluate this historical September run.',
+        }
+        (input_dir/'forecast_issue.json').write_text(json.dumps(issue, indent=2), encoding='utf-8')
+
+        forecasts: dict[int, pd.DataFrame] = {}
+        selected_metrics: list[dict] = []
+        for horizon, model_id in SELECTED_MODELS.items():
+            prediction = loads.loc[loads['model_id'].eq(model_id)].head(horizon).copy()
+            occupancy_model = 'random_forest' if model_id == 'direct_random_forest' else 'catboost'
+            occupancy_prediction = occupancy.loc[occupancy['model_id'].eq(occupancy_model)].head(horizon)
+            prediction['occupancy_hat'] = occupancy_prediction['occupancy_hat'].to_numpy()
+            prediction = prediction.rename(columns={'load_hat': 'forecast_kwh'})
+            keep = ['timestamp_utc', 'timestamp_local', 'model_id', 'forecast_kwh', 'actual_total_kwh',
+                    'occupancy_hat', 'base_hat', 'behaviour_hat', 'space_heating_hat',
+                    'water_heater_hat', 'water_draw_hat_l', 'tank_hat_c']
+            prediction = prediction[keep]
+            prediction.to_csv(output_data_dir/f'forecast_{horizon}h.csv', index=False, float_format='%.6f')
+            forecasts[horizon] = prediction
+            metric = load_metrics.loc[(load_metrics['model_id'].eq(model_id)) &
+                                      (load_metrics['horizon_hours'].eq(horizon))].iloc[0].to_dict()
+            selected_metrics.append(metric)
+
+    metrics = pd.DataFrame(selected_metrics).sort_values('horizon_hours')
+    metrics.to_csv(output_data_dir/'selected_metrics.csv', index=False, float_format='%.6f')
+    _create_selected_prediction_charts(output_dir, forecasts)
+    dashboard = f'''<!doctype html><html><head><meta charset="utf-8"><title>HackoWatt selected prediction</title>
+<style>body{{font-family:Arial,sans-serif;margin:32px;background:#f5f7fb;color:#172033}}h1,h2{{color:#12263f}}img{{max-width:100%;background:white;padding:8px;border-radius:8px;margin:8px 0 28px}}table{{border-collapse:collapse;background:white;margin-bottom:28px}}th,td{{padding:8px 12px;border:1px solid #d8dee9}}th{{background:#12263f;color:white}}</style>
+</head><body><h1>Selected load forecasts</h1><p>24 hours: Direct Random Forest. 72 and 168 hours: Modular CatBoost. This is a historical backtest from {forecast_start_local} in Polish local time.</p>
+<h2>Metrics</h2>{metrics.round(4).to_html(index=False)}
+{''.join(f'<h2>{hours}-hour forecast</h2><img src="forecast_{hours}h.png">' for hours in SELECTED_MODELS)}
+</body></html>'''
+    (output_dir/'prediction_dashboard.html').write_text(dashboard, encoding='utf-8')
+    return metrics

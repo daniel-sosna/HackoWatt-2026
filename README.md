@@ -76,6 +76,16 @@ python main.py model-benchmark
 
 Outputs are written to `results/model_benchmark/`. Training ends before 1 May 2025 in Polish local time; forecasts are evaluated at 24, 72, and 168 hours from the start of May. The original hourly data is never changed. See `docs/model_training.md` for the feature policy, files, and recursive test protocol.
 
+## Selected prediction package
+
+The approved operating policy is Direct Random Forest for the 24-hour horizon and Modular CatBoost for the 72- and 168-hour horizons. Run it with:
+
+```powershell
+python main.py selected-prediction --forecast-start-local "2025-09-10 00:00:00"
+```
+
+It recreates the small `results/prediction/` package. `input/forecast_features.csv` contains only calendar and weather inputs; `output/` contains one selected forecast CSV per horizon and its metrics. `prediction_dashboard.html` and the three PNGs compare the selected backtest forecasts against actual historical demand. Alternative models, training copies, and pickles are discarded rather than placed in this folder.
+
 ## Sources and time handling
 
 Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.
