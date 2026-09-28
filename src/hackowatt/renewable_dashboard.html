@@ -11,6 +11,7 @@
 <style>
 .habits{grid-template-columns:1fr}.select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:white;color:var(--ink)}.recommendations{display:grid;gap:8px;max-height:390px;overflow:auto;padding-right:4px}.rec{display:grid;grid-template-columns:145px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:13px;padding:11px}.rec-time{font-weight:750}.rec-reason{font-size:11px;color:var(--muted)}.rec-save{text-align:right;color:var(--green);font-weight:800}.badge-warn{background:#fff3d8;color:#8a5b00}.badge-human{background:#eaf1fb;color:#2c6290}.insight-bars{height:170px;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--line);padding-top:14px}.insight-bar{flex:1;background:linear-gradient(#64bd83,#19764c);border-radius:4px 4px 0 0;min-height:2px;position:relative}.insight-bar:hover:after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#173c2d;color:white;padding:4px 6px;border-radius:6px;font-size:10px;white-space:nowrap;z-index:3}.hour-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:5px}.insight-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.mini-kpi{background:#f5f8f5;padding:10px;border-radius:11px}.mini-kpi b{display:block;font-size:16px}.mini-kpi small{color:var(--muted)}.occupancy-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:6px}.occ{background:#f4f8f5;border:1px solid var(--line);border-radius:10px;padding:6px;text-align:center}.occ label{display:block;font-size:9px;color:var(--muted)}.occ input{width:100%;border:0;background:transparent;text-align:center;font-weight:800;color:var(--green);font-size:15px}.segmented{display:flex;gap:5px}.segmented button{border:1px solid var(--line);background:white;border-radius:9px;padding:7px 10px;cursor:pointer}.segmented button.active{background:var(--green);color:white}.model-contract{margin-top:14px;border-left:4px solid var(--blue);background:#f0f6fa;padding:11px 13px;border-radius:8px;font-size:11px}.source-chip{display:inline-block;background:#eef4ef;color:#486157;border-radius:8px;padding:3px 7px;margin-top:5px;font-size:10px}@media(max-width:850px){.occupancy-grid{grid-template-columns:repeat(6,1fr)}.rec{grid-template-columns:1fr}.rec-save{text-align:left}}
 .control-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.control{background:#f5f8f5;border:1px solid var(--line);padding:13px;border-radius:13px}.control label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.control input,.control select{width:100%;border:1px solid #d8e2da;border-radius:9px;background:white;padding:8px;color:var(--ink);font-weight:700}.readiness{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.ready{border:1px solid var(--line);border-radius:12px;padding:10px}.ready b{display:block;font-size:12px}.ready small{color:var(--muted)}.ready .source-chip{margin-right:4px}@media(max-width:850px){.control-grid,.readiness{grid-template-columns:1fr 1fr}}@media(max-width:560px){.control-grid,.readiness{grid-template-columns:1fr}}
+.app-tabs{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:14px 0 18px;padding:7px;background:#ffffffea;border:1px solid var(--line);border-radius:15px;box-shadow:0 8px 24px rgba(25,59,42,.08);backdrop-filter:blur(12px);overflow:auto}.app-tab{border:0;background:transparent;color:var(--muted);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:750;white-space:nowrap}.app-tab.active{background:var(--green);color:white}.page{display:none}.page.active{display:block}.page.grid.active{display:grid}.page-title{margin:2px 2px 12px}.page-title h2{margin:0;font-size:21px}.page-title p{margin:3px 0;color:var(--muted);font-size:12px}@media(max-width:650px){.app-tab{padding:9px 11px}.app-tabs{border-radius:12px}}
 </style>
 </head>
 <body>
@@ -23,8 +24,16 @@
     <div class="modebar"><button class="mode active" data-mode="hackathon">Hackathon mode</button><button class="mode" data-mode="poland">Poland mode</button></div>
   </header>
   <div class="notice" id="modeNote"></div>
+  <nav class="app-tabs" aria-label="Application sections">
+    <button class="app-tab active" data-page-target="overview">Overview</button>
+    <button class="app-tab" data-page-target="plan">Smart plan</button>
+    <button class="app-tab" data-page-target="household">Household</button>
+    <button class="app-tab" data-page-target="investment">Solar investment</button>
+    <button class="app-tab" data-page-target="data">Data & terms</button>
+  </nav>
 
-  <section class="grid">
+  <div class="page-title page active" data-page="overview"><h2>Energy overview</h2><p>PV potential, household energy flows and the effect of smarter timing.</p></div>
+  <section class="grid page active" data-page="overview">
     <div class="card">
       <div class="section-title"><div><h2>Choose installation capacity</h2><p>kWp is the panels' rated peak DC power under standard test conditions.</p></div><span class="status" id="weatherPeriod"></span></div>
       <div class="capacity"><div><input id="capacity" type="range" min="0" max="10" step="0.5" value="4"><div class="ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10 kWp</span></div></div><output id="capacityOut">4.0 kWp</output></div>
@@ -54,20 +63,23 @@
     </div>
   </section>
 
-  <section class="grid" style="margin-top:18px">
+  <div class="page-title page" data-page="investment"><h2>Solar investment</h2><p>Compare installation sizes, payback and long-term assumptions.</p></div>
+  <section class="page" data-page="investment">
     <div class="card">
       <div class="section-title"><div><h2>Capacity comparison</h2><p>Payback for several installation sizes. Lower is better.</p></div><span class="status">0 · 2 · 4 · 6 · 8 · 10 kWp</span></div>
       <div class="chart-wrap"><canvas id="capacityChart"></canvas></div>
       <div class="legend"><span><i class="dot" style="background:var(--blue)"></i>A · current habits</span><span><i class="dot" style="background:var(--green2)"></i>B · smart shifting</span></div>
     </div>
-    <div class="card">
+  </section>
+
+  <div class="page-title page" data-page="plan"><h2>Smart energy plan</h2><p>Choose flexible devices, inspect habits and understand every proposed move.</p></div>
+  <section class="card page" data-page="plan" style="margin-top:18px">
       <div class="section-title"><div><h2>Devices and flexibility</h2><p>Observed timing supplies a starting point; the family remains in control.</p></div></div>
       <div class="habits" id="habitCards"></div>
       <p class="assumption">Washing and dishwasher cycles are safe automatic candidates. Cooking, TV and computer changes require user approval. Heating and hot-water switches are opt-in proxy estimates until the colleagues' stateful model validates comfort and tank temperature.</p>
-    </div>
   </section>
 
-  <section class="grid" style="margin-top:18px">
+  <section class="grid page" data-page="plan" style="margin-top:18px">
     <div class="card">
       <div class="section-title"><div><h2>Recommended schedule</h2><p>Historical backtest: concrete moves with time, reason and estimated value.</p></div><div style="display:flex;gap:6px"><select id="recommendationDevice" class="select"><option value="all">All selected devices</option></select><select id="recommendationSort" class="select"><option value="time">Chronological</option><option value="saving">Highest saving</option></select></div></div>
       <div class="notice" id="recommendationSummary" style="margin:0 0 12px"></div>
@@ -80,28 +92,23 @@
     </div>
   </section>
 
-  <section class="card" style="margin-top:18px">
+  <div class="page-title page" data-page="household"><h2>Household preferences</h2><p>Tell the optimiser what the family values and when people are home.</p></div>
+  <section class="card page" data-page="household" style="margin-top:18px">
     <div class="section-title"><div><h2>Household control centre</h2><p>Choose the outcome and limits. The optimiser changes its schedule, while the family keeps final control.</p></div><span class="status" id="controlStatus">Advisory plan</span></div>
     <div class="control-grid">
       <div class="control"><label for="optimizationGoal">Optimisation goal</label><select id="optimizationGoal"><option value="bill">Lowest electricity bill</option><option value="solar">Use the most rooftop solar</option><option value="grid">Avoid household grid peaks</option></select></div>
       <div class="control"><label for="gridTargetKw">Preferred grid limit</label><input id="gridTargetKw" type="number" min="0.5" max="15" step="0.1" value="3"><small>kW average over an hour; used by the grid-friendly goal</small></div>
       <div class="control"><label for="householdSize">People living in the home</label><input id="householdSize" type="number" min="1" max="10" step="1" value="4"><small>Caps the editable hourly presence plan below</small></div>
     </div>
-    <div class="readiness">
-      <div class="ready"><b>Weather & solar</b><span class="source-chip">Automatic API</span><small>Open-Meteo forecast; PVGIS or inverter data for PV.</small></div>
-      <div class="ready"><b>Whole-home electricity</b><span class="source-chip">Meter / CSV</span><small>Smart meter, TAURON eLicznik account, provider CSV, or a household bill.</small></div>
-      <div class="ready"><b>Presence & device deadlines</b><span class="source-chip">Learned + editable</span><small>History supplies defaults; the family overrides tomorrow's plan.</small></div>
-      <div class="ready"><b>Room & tank state</b><span class="source-chip">Sensor improves accuracy</span><small>Assumptions work for simulation; sensors are required before automatic thermal control.</small></div>
-    </div>
   </section>
 
-  <section class="card" style="margin-top:18px">
+  <section class="card page" data-page="household" style="margin-top:18px">
     <div class="section-title"><div><h2>Who is at home?</h2><p>Set the number of people for every hour. Human activities are recommended only when somebody is home.</p></div><div class="segmented"><button id="weekdayBtn" class="active">Weekday</button><button id="weekendBtn">Weekend</button></div></div>
     <div class="occupancy-grid" id="occupancyGrid"></div>
     <div class="model-contract"><b>Model connection ready.</b> Active source: <span id="modelSource"></span>. A colleague model can be passed with <code>--model-profile</code> using <code>timestamp_utc, load_kwh</code> and optional <code>occupancy_people</code>.</div>
   </section>
 
-  <section class="card" style="margin-top:18px">
+  <section class="card page" data-page="investment" style="margin-top:18px">
     <div class="section-title"><div><h2>Assumptions you can change</h2><p>Defaults are visible so a jury member can reproduce the result.</p></div><button id="reset" class="mode" style="color:var(--green);border-color:#b8d6c2;background:#eef8f1">Reset mode</button></div>
     <div class="parameters">
       <div class="param"><label>Specific yield <span class="tip" title="Annual AC electricity produced by each installed kWp.">?</span></label><input id="specificYield" type="number" min="500" max="1400" step="10"><small>kWh/kWp/year</small></div>
@@ -124,7 +131,17 @@
     <p class="assumption" id="assumptionText"></p>
   </section>
 
-  <section class="card" style="margin-top:18px">
+  <div class="page-title page" data-page="data"><h2>Data and model transparency</h2><p>See what can be connected, what is learned and what remains an assumption.</p></div>
+  <section class="card page" data-page="data" style="margin-top:18px">
+    <div class="section-title"><div><h2>Input readiness</h2><p>The product remains useful without hardware and becomes more accurate as real data is connected.</p></div></div>
+    <div class="readiness">
+      <div class="ready"><b>Weather & solar</b><span class="source-chip">Automatic API</span><small>Open-Meteo forecast; PVGIS or inverter data for PV.</small></div>
+      <div class="ready"><b>Whole-home electricity</b><span class="source-chip">Meter / CSV</span><small>Smart meter, TAURON eLicznik account, provider CSV, or a household bill.</small></div>
+      <div class="ready"><b>Presence & device deadlines</b><span class="source-chip">Learned + editable</span><small>History supplies defaults; the family overrides tomorrow's plan.</small></div>
+      <div class="ready"><b>Room & tank state</b><span class="source-chip">Sensor improves accuracy</span><small>Assumptions work for simulation; sensors are required before automatic thermal control.</small></div>
+    </div>
+  </section>
+  <section class="card page" data-page="data" style="margin-top:18px">
     <div class="section-title"><div><h2>Plain-language glossary</h2><p>Every technical term used by the simulator.</p></div></div>
     <div class="glossary">
       <div class="term"><b>PV · photovoltaics</b><span>Solar panels that convert sunlight directly into electricity.</span></div>
@@ -181,8 +198,9 @@ function populateSelectors(){for(const [key,value] of Object.entries(D.deviceIns
 function renderInsight(){const v=D.deviceInsights[$('insightDevice').value],root=$('insightBars'),max=Math.max(...v.typicalDayKwh,1e-6);root.innerHTML='';v.typicalDayKwh.forEach((x,h)=>{const bar=document.createElement('div');bar.className='insight-bar';bar.style.height=(4+96*x/max)+'%';bar.dataset.tip=clock(h)+' · '+x.toFixed(3)+' kWh';root.appendChild(bar)});$('insightAnnual').textContent=energy(v.annualKwh);$('insightPeak').textContent=clock(v.peakHour);$('insightEvents').textContent=v.events||'continuous'}
 function renderRecommendations(m){const filter=$('recommendationDevice').value,order=$('recommendationSort').value,all=m.changes.filter(x=>filter==='all'||x.category===filter).slice(),root=$('recommendationList'),annualExtra=m.saveB-m.saveA,goal=GOALS[$('optimizationGoal').value];if(order==='time')all.sort((a,b)=>a.from-b.from||a.to-b.to);else all.sort((a,b)=>b.saving-a.saving);$('recommendationSummary').innerHTML=`<b>Historical backtest, not a live tomorrow plan.</b> Goal: <b>${goal}</b>. ${m.shifted} moves selected across ${D.years.join('–')}; additional bill saving from scheduling: <b>${money(annualExtra)}/year</b>. ${all.some(x=>x.proxy)?'Proxy heating/tank items still require model validation.':''}`;root.innerHTML='';if(!all.length){root.innerHTML='<div class="flow-box"><b>No moves for this filter</b><small>Enable a device above, widen its allowed window, or choose another appliance.</small></div>';return}all.slice(0,30).forEach(r=>{const el=document.createElement('div');el.className='rec';el.innerHTML=`<div><b>${LABELS[r.category]}</b><div class="rec-reason">${r.resource.replaceAll('_',' ')}</div></div><div class="rec-time">${localStamp(r.from)} → ${localStamp(r.to)}<div class="rec-reason">${r.reason} · ${r.energy.toFixed(2)} kWh</div></div><div class="rec-save">${money(r.saving,2)}</div>`;root.appendChild(el)})}
 function renderOccupancy(){const root=$('occupancyGrid'),people=Math.max(1,n('householdSize'));root.innerHTML='';occupancyPlan[occupancyKind]=occupancyPlan[occupancyKind].map(v=>clamp(v,0,people));occupancyPlan[occupancyKind].forEach((v,h)=>{const el=document.createElement('div');el.className='occ';el.innerHTML=`<label>${clock(h)}</label><input type="number" min="0" max="${people}" step="1" value="${v}">`;el.querySelector('input').onchange=e=>{occupancyPlan[occupancyKind][h]=clamp(Number(e.target.value),0,people);render()};root.appendChild(el)});$('weekdayBtn').classList.toggle('active',occupancyKind==='weekday');$('weekendBtn').classList.toggle('active',occupancyKind==='weekend')}
+function showPage(requested){const allowed=['overview','plan','household','investment','data'],page=allowed.includes(requested)?requested:'overview';document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));document.querySelectorAll('[data-page-target]').forEach(el=>el.classList.toggle('active',el.dataset.pageTarget===page));requestAnimationFrame(()=>currentResults&&drawChart())}
 function applyMode(key){mode=key;app.classList.toggle('poland',key==='poland');document.querySelectorAll('.modebar .mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===key));const m=D.modes[key],d=defaults[key];$('capexPerKwp').value=m.capex_per_kwp;$('exportPrice').value=m.export_price_per_kwh;$('opexPct').value=m.annual_opex_fraction*100;$('nightPrice').value=m.night_price;$('dayPrice').value=m.day_price;$('peakPrice').value=m.peak_price;$('latePrice').value=m.late_price;for(const [k,v] of Object.entries(d))$(k).value=v;$('capexUnit').textContent=m.currency+'/kWp';$('exportUnit').textContent=m.currency+'/kWh';document.querySelectorAll('.priceUnit').forEach(e=>e.textContent=m.currency+'/kWh');$('subsidyUnit').textContent=m.currency;$('capexSource').textContent=key==='hackathon'?'Source: organiser Common Challenge Assumptions PDF':'Illustrative editable planning value';$('modeNote').innerHTML=key==='hackathon'?'<b>Hackathon mode:</b> organiser tariffs, €0.08/kWh export, €1,300/kWp CAPEX and 1% annual OPEX.':'<b>Poland mode:</b> editable planning inputs with net-billing, degradation, discounting, subsidy, tax benefit and inverter replacement. Defaults are illustrative; use the household contract and current programme rules.';$('assumptionText').textContent=key==='hackathon'?'The €1,300/kWp installation price, tariffs, €0.08/kWh export and 1% OPEX come directly from the shared organiser PDF. The 1,000 kWh/kWp/year yield is an explicit editable assumption.':'The Poland defaults are editable scenario inputs, not a tariff quote. Net-billing credits and the retail bill vary over time and by contract; subsidy and tax fields default to zero to avoid claiming eligibility.';render()}
-document.querySelectorAll('.modebar .mode').forEach(b=>b.onclick=()=>applyMode(b.dataset.mode));$('capacity').oninput=render;ids.forEach(id=>$(id).addEventListener('change',render));$('optimizationGoal').onchange=render;$('gridTargetKw').onchange=render;$('householdSize').onchange=()=>{renderOccupancy();render()};$('reset').onclick=()=>applyMode(mode);$('weekdayBtn').onclick=()=>{occupancyKind='weekday';renderOccupancy()};$('weekendBtn').onclick=()=>{occupancyKind='weekend';renderOccupancy()};window.addEventListener('resize',()=>currentResults&&drawChart());makeHabits();populateSelectors();renderOccupancy();$('weatherPeriod').textContent=D.years.join('–')+' historical shape';$('sources').textContent=Object.values(D.sources).join(' · ');$('modelSource').textContent=D.modelContract.activeLoadSource;applyMode('hackathon');
+document.querySelectorAll('.modebar .mode').forEach(b=>b.onclick=()=>applyMode(b.dataset.mode));document.querySelectorAll('.app-tab').forEach(b=>b.onclick=()=>{location.hash=b.dataset.pageTarget});$('capacity').oninput=render;ids.forEach(id=>$(id).addEventListener('change',render));$('optimizationGoal').onchange=render;$('gridTargetKw').onchange=render;$('householdSize').onchange=()=>{renderOccupancy();render()};$('reset').onclick=()=>applyMode(mode);$('weekdayBtn').onclick=()=>{occupancyKind='weekday';renderOccupancy()};$('weekendBtn').onclick=()=>{occupancyKind='weekend';renderOccupancy()};window.addEventListener('resize',()=>currentResults&&drawChart());window.addEventListener('hashchange',()=>showPage(location.hash.slice(1)));makeHabits();populateSelectors();renderOccupancy();$('weatherPeriod').textContent=D.years.join('–')+' historical shape';$('sources').textContent=Object.values(D.sources).join(' · ');$('modelSource').textContent=D.modelContract.activeLoadSource;applyMode('hackathon');showPage(location.hash.slice(1)||'overview');
 </script>
 </body>
 </html>

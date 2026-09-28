@@ -14,6 +14,16 @@ Open `results/renewable/renewable_energy_simulator.html`. The file contains its
 data and code, needs no server, makes no network requests and can be copied to a
 demo computer.
 
+The interface is organised like a consumer energy application with five
+bookmarkable tabs:
+
+- **Overview** for headline PV, flow, savings and payback metrics;
+- **Smart plan** for device permissions, learned habits and recommendations;
+- **Household** for optimisation goals, grid limit, resident count and hourly
+  presence;
+- **Solar investment** for capacity comparison and editable financial inputs;
+- **Data & terms** for connection readiness, provenance and explanations.
+
 ## Two economic modes
 
 **Hackathon mode** uses the common organiser assumptions: €1,300/kWp capital

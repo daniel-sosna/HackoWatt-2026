@@ -62,6 +62,10 @@ Put technical building and economic parameters under Advanced settings. Never
 ask a resident for a thermal resistance or capacitance; estimate it and show a
 confidence range.
 
+The offline simulator presents the current controls across Overview, Smart
+plan, Household, Solar investment, and Data & terms tabs. URL hashes preserve
+the selected page, so the demo can link directly to a workflow step.
+
 ## Differentiators worth building
 
 ### P0: complete and demonstrable
