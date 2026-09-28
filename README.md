@@ -1,13 +1,13 @@
 # HackoWatt Family
 
-Локальный Python-проект для PyCharm Community: синтетическая семья из четырёх человек, приборы, прямое электрическое отопление и отдельный бойлер. Погода, Eurostat и календари включены. PV, батарей, экспорта в сеть и другой генерации энергии нет.
+A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The scope excludes PV, batteries, grid export, and other electricity generation.
 
-## Быстрый запуск в PyCharm
+## Quick start in PyCharm
 
-1. Откройте эту папку через **File → Open**.
-2. Выберите интерпретатор `.venv/Scripts/python.exe`, если он уже создан на этом компьютере. Для нового компьютера создайте Python 3.11+ virtual environment и выполните `pip install -r requirements.txt`.
-3. Запустите `main.py` с нужным компонентом. Даты генерации берутся из погодного файла, а не задаются отдельно.
-4. Откройте `results/default/dashboard.html` в браузере двойным щелчком после команды `dashboard`. Интернет и сервер не нужны.
+1. Open this folder with **File → Open**.
+2. Select `.venv/Scripts/python.exe` if the environment already exists on this computer. On a new computer, create a Python 3.11+ virtual environment and run `pip install -r requirements.txt`.
+3. Run `main.py` with the required component. Generation dates come from the weather file and are not set separately.
+4. After running `dashboard`, open `results/default/dashboard.html` by double-clicking it. No server or internet connection is required.
 
 ```powershell
 python main.py generate
@@ -17,11 +17,11 @@ python main.py forecast-dashboard
 python -m unittest discover -s tests -v
 ```
 
-Готовый пример уже находится в `results/default`. Ожидается 17 544 физических часа за местные календарные 2024–2025 годы, включая 29 февраля.
+A generated example is already available in `results/default`. It contains 17,544 physical hours for local calendar years 2024--2025, including 29 February.
 
-## Параметры дома
+## House parameters
 
-Редактируйте `config/default.json`. `house.mode = "sample"` выбирает случайные значения только для полей с описанием распределения, один раз на весь дом. Числа остаются фиксированными. `house.overrides` всегда имеет приоритет:
+Edit `config/default.json`. `house.mode = "sample"` draws only fields that have a distribution definition, once for the whole house; the drawn values remain fixed. `house.overrides` always takes priority:
 
 ```json
 "overrides": {
@@ -31,57 +31,57 @@ python -m unittest discover -s tests -v
 }
 ```
 
-Это пример ввода, а не рекомендация по мощности. Мощность 3,5 кВт по умолчанию сохраняет верхнюю границу примера организаторов; для целого дома её может не хватать. Температура не подгоняется искусственно к уставке: недогрев отражается в данных.
+This is an input example, not a capacity recommendation. The default 3.5 kW capacity preserves the organiser example's upper bound and may be insufficient for a complete house. The model does not artificially force indoor temperature to the setpoint: inadequate heating appears as a comfort deficit in the data.
 
-Для полностью ручного дома используйте `config/manual_example.json`: все значения заданы числами, `mode = "manual"`. Режим отвергает оставшиеся случайные поля без ручной замены. Получившийся дом всегда сохраняется в `resolved_house.json`.
+For a fully manual home, use `config/manual_example.json`: every value is numeric and `mode = "manual"`. This mode rejects remaining sampled fields that have not been replaced manually. The realised house is always saved to `resolved_house.json`.
 
 ```powershell
 python main.py generate --config config/manual_example.json --output results/manual
 python main.py dashboard --input results/manual
 ```
 
-## Что проверять на графиках
+## What to inspect in the dashboard
 
-В dashboard доступны диапазон дат, выбор прибора, выбор жителя, месячные суммы, почасовая активность и присутствие дома, температура помещения/бака, зависимость отопления от погоды и сравнение взрослых с Eurostat. График приборов можно сохранить в PNG. Hover показывает точное время с UTC-смещением и энергию.
+The dashboard provides a date range, appliance and resident filters, monthly totals, hourly activities and occupancy, indoor and tank temperatures, the heating-weather relationship, and an adult Eurostat comparison. Appliance charts can be saved as PNG. Hover displays the exact timestamp with UTC offset and the energy value.
 
-Смотрите на зимний недогрев, летний перегрев (кондиционера нет), нехватку горячей воды, долю отвергнутых занятий и отличие от Eurostat. Автоматические тесты подтверждают внутреннюю согласованность, но не доказывают соответствие реальному счётчику.
+Inspect winter underheating, summer overheating because there is no air conditioner, unmet hot-water demand, rejected activities, and differences from Eurostat. Automated checks confirm internal consistency; they do not prove that the profile matches a real meter.
 
-## Результаты
+## Outputs
 
-| Файл | Содержимое |
+| File | Contents |
 |---|---|
-| `hourly.csv` | Погода, кВт·ч каждого прибора и отопления/бойлера, итог, минутный пик мощности, температуры, присутствие, календарь |
-| `residents_hourly.csv` | Для каждого жителя минуты каждого основного занятия в каждом часе; сумма ровно 60 |
-| `resident_events.csv` | Непрерывные интервалы занятий и признак присутствия дома |
-| `appliance_events.csv` | Запуски событийных приборов; фоновые нагрузки содержатся в hourly.csv |
-| `activity_proposals.csv` | Предложенное и принятое время занятий, причины отказов |
-| `eurostat_comparison.csv` | Частота участия и длительности по взрослым против исходной таблицы |
-| `calendar.csv` | Применённые выходные, каникулы, смены и работа из дома |
-| `validation.json` | Проверки, диагностика, ограничения, хэши источников и обработка DST |
-| `resolved_house.json`, `run_config.json` | Фактические параметры дома и конфигурация запуска |
+| `hourly.csv` | Weather, appliance and heating/boiler kWh, total, one-minute power peak, temperatures, occupancy, and calendar. |
+| `residents_hourly.csv` | Minutes of each main activity per resident and hour; each resident totals exactly 60 minutes per hour. |
+| `resident_events.csv` | Continuous activity intervals and at-home status. |
+| `appliance_events.csv` | Event-based appliance runs; background loads are stored in `hourly.csv`. |
+| `activity_proposals.csv` | Proposed and accepted activity times, including rejection reasons. |
+| `eurostat_comparison.csv` | Adult participation and duration compared with the input Eurostat table. |
+| `calendar.csv` | Applied weekends, breaks, shifts, and working-from-home days. |
+| `validation.json` | Checks, diagnostics, constraints, source hashes, and DST handling. |
+| `resolved_house.json`, `run_config.json` | Realised house parameters and run configuration. |
 
-В `hourly.csv` суффикс `_kwh` означает энергию за час, `_kw` — мощность. `mean_kw` численно равен `total_kwh` только потому, что интервалы имеют длительность один физический час. `peak_1min_kw` — максимум минутной мощности. `hot_water_unmet_kwh` — неудовлетворённая тепловая потребность, она не входит в потреблённое электричество. `thermal_residual_kwh` — численная невязка, также не нагрузка.
+In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means power. `mean_kw` is numerically equal to `total_kwh` only because intervals are one physical hour. `peak_1min_kw` is the maximum minute-level power. `hot_water_unmet_kwh` is unmet thermal demand and is not consumed electricity. `thermal_residual_kwh` is a numerical balance residual, also not a load.
 
 ## Forecasting
 
-`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both produce recursive forecasts for 24 hours, 3 days and 7 days; they are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` makes an offline comparison dashboard in `results/forecast/forecast_dashboard.html`. Detailed method, leakage policy and deployment inputs: `docs/forecast_models_ru.md`.
+`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` creates the offline comparison dashboard at `results/forecast/forecast_dashboard.html`. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
 
-## Источники и время
+## Sources and time handling
 
-Исходные файлы сохранены без изменений в `data/raw`. Время погоды интерпретируется как местное польское, ветер — км/ч, как подтвердил пользователь. В исходном файле нет DST: два несуществующих весенних часа исключаются, два осенних повторяющихся часа получают одинаковую погоду. Операции перечислены в validation.json; итоговая шкала UTC уникальна. Значения исходной погоды не интерполируются. Прочие пропуски вызывают ошибку.
+Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.
 
-Календарь поправлен отдельным `data/calendar_corrections.json`: добавлено 24 декабря 2025 года. Первичный файл не изменён. Источник поправки записан в JSON. При желании отключите `calendar.apply_corrections`.
+The calendar is amended through `data/calendar_corrections.json`, which adds 24 December 2025. The original file is not changed. The correction source is recorded in JSON. Disable `calendar.apply_corrections` if required.
 
-## Правила и воспроизводимость
+## Rules and reproducibility
 
-Финальные правила на английском: `docs/rules_v3.pdf`, редактируемый текст: `docs/rules_v3.md`. Пересборка PDF: `python tools/build_rules.py`. Таблицы параметров и Eurostat добавляются из реальных конфигурации и CSV, а не дублируются вручную. Исходные документы организаторов лежат в `docs/`.
+The final rules are in English: `docs/rules_v3.pdf`, with editable source in `docs/rules_v3.md`. Rebuild the PDF with `python tools/build_rules.py`. Parameter tables and Eurostat values are inserted from the actual configuration and CSV rather than duplicated manually. The organiser's source documents are in `docs/`.
 
-Проверка текущего сценария, полный словарь 55 столбцов `hourly.csv`, правила для ML и список реальных потоков данных для калибровки: `docs/hourly_data_dictionary_ru.md`.
+For current-scenario validation, the complete 55-column `hourly.csv` dictionary, ML rules, and candidate real-home calibration data feeds, see `docs/hourly_data_dictionary.md`.
 
-Seed задаётся в конфигурации. Отдельные потоки случайности используются для дома, поведения и приборов. Одна и та же конфигурация, версия кода и версии зависимостей воспроизводят результат. Новые погодные файлы должны содержать непрерывные почасовые данные и согласованные календари; для другого периода сначала обновите календари.
+The configuration supplies the random seed. Separate random streams are used for the house, behaviour, and appliances. The same configuration, code version, and dependency versions reproduce the same result. New weather files must contain continuous hourly data and consistent calendars. Update calendars before generating a different period.
 
-## Структура кода
+## Code structure
 
-`main.py` - каноническая точка запуска. Он вызывает компонент через реестр в `src/hackowatt/components/`: `generate`, `dashboard`, `forecast` или `forecast-dashboard`. Генератор остаётся переиспользуемой библиотечной функцией в `pipeline.py`; будущие компоненты могут вызывать её или читать её `hourly.csv`, не меняя simulation code. `inputs.py` проверяет источники и параметры; `behaviour.py` создаёт расписания; `devices.py` связывает деятельность с приборами; `thermal.py` решает балансы дома и бака. Визуализация полностью локальная, на Canvas, без CDN и телеметрии. Полная схема и пример добавления компонента: `docs/architecture.md`.
+`main.py` is the canonical entry point. It invokes a registered component in `src/hackowatt/components/`: `generate`, `dashboard`, `forecast`, or `forecast-dashboard`. The generator remains reusable as the library function in `pipeline.py`; future components can call it or read its `hourly.csv` without modifying simulation code. `inputs.py` validates sources and parameters; `behaviour.py` creates schedules; `devices.py` maps activities to appliances; `thermal.py` solves the house and tank balances. Visualisation is fully local, rendered on Canvas, and has no CDN or telemetry. See `docs/architecture.md` for the complete diagram and a component example.
 
-Это **локальный Git-репозиторий**. Исходные данные, правила и код отслеживаются Git. `results/` и `.venv/` исключены, чтобы не создавать огромные коммиты; уже сгенерированные файлы при этом остаются на компьютере. Удалённый репозиторий не настроен.
+This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.
