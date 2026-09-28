@@ -1,14 +1,9 @@
-"""Run in PyCharm, or: python generate.py --config config/default.json."""
-import argparse
-import sys
+"""Compatibility wrapper. Prefer: python main.py generate."""
 from pathlib import Path
+import sys
 ROOT=Path(__file__).resolve().parent
 sys.path.insert(0,str(ROOT/'src'))
-from hackowatt.pipeline import generate
+from hackowatt.app import main
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config',type=Path,default=ROOT/'config/default.json')
-    parser.add_argument('--output',type=Path)
-    args=parser.parse_args()
-    generate(ROOT,args.config,args.output)
+    raise SystemExit(main(['generate',*sys.argv[1:]]))

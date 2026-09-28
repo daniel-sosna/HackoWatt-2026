@@ -6,14 +6,14 @@
 
 1. Откройте эту папку через **File → Open**.
 2. Выберите интерпретатор `.venv/Scripts/python.exe`, если он уже создан на этом компьютере. Для нового компьютера создайте Python 3.11+ virtual environment и выполните `pip install -r requirements.txt`.
-3. Запустите `generate.py`. Даты берутся из погодного файла, а не задаются отдельно.
-4. Запустите `visualize.py`. Откройте `results/default/dashboard.html` в браузере двойным щелчком. Интернет и сервер не нужны.
+3. Запустите `main.py` с нужным компонентом. Даты генерации берутся из погодного файла, а не задаются отдельно.
+4. Откройте `results/default/dashboard.html` в браузере двойным щелчком после команды `dashboard`. Интернет и сервер не нужны.
 
 ```powershell
-python generate.py
-python visualize.py
-python forecast.py
-python visualize_forecasts.py
+python main.py generate
+python main.py dashboard
+python main.py forecast
+python main.py forecast-dashboard
 python -m unittest discover -s tests -v
 ```
 
@@ -36,8 +36,8 @@ python -m unittest discover -s tests -v
 Для полностью ручного дома используйте `config/manual_example.json`: все значения заданы числами, `mode = "manual"`. Режим отвергает оставшиеся случайные поля без ручной замены. Получившийся дом всегда сохраняется в `resolved_house.json`.
 
 ```powershell
-python generate.py --config config/manual_example.json --output results/manual
-python visualize.py --input results/manual
+python main.py generate --config config/manual_example.json --output results/manual
+python main.py dashboard --input results/manual
 ```
 
 ## Что проверять на графиках
@@ -64,7 +64,7 @@ python visualize.py --input results/manual
 
 ## Forecasting
 
-`forecast.py` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both produce recursive forecasts for 24 hours, 3 days and 7 days; they are compared with a weekly seasonal-naive baseline. `visualize_forecasts.py` makes an offline comparison dashboard in `results/forecast/forecast_dashboard.html`. Detailed method, leakage policy and deployment inputs: `docs/forecast_models_ru.md`.
+`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both produce recursive forecasts for 24 hours, 3 days and 7 days; they are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` makes an offline comparison dashboard in `results/forecast/forecast_dashboard.html`. Detailed method, leakage policy and deployment inputs: `docs/forecast_models_ru.md`.
 
 ## Источники и время
 
@@ -76,12 +76,12 @@ python visualize.py --input results/manual
 
 Финальные правила на английском: `docs/rules_v3.pdf`, редактируемый текст: `docs/rules_v3.md`. Пересборка PDF: `python tools/build_rules.py`. Таблицы параметров и Eurostat добавляются из реальных конфигурации и CSV, а не дублируются вручную. Исходные документы организаторов лежат в `docs/`.
 
-Проверка текущего сценария, полный словарь 52 столбцов `hourly.csv`, правила для ML и список реальных потоков данных для калибровки: `docs/hourly_data_dictionary_ru.md`.
+Проверка текущего сценария, полный словарь 55 столбцов `hourly.csv`, правила для ML и список реальных потоков данных для калибровки: `docs/hourly_data_dictionary_ru.md`.
 
 Seed задаётся в конфигурации. Отдельные потоки случайности используются для дома, поведения и приборов. Одна и та же конфигурация, версия кода и версии зависимостей воспроизводят результат. Новые погодные файлы должны содержать непрерывные почасовые данные и согласованные календари; для другого периода сначала обновите календари.
 
 ## Структура кода
 
-`inputs.py` проверяет источники и параметры; `behaviour.py` создаёт расписания; `devices.py` связывает деятельность с приборами; `thermal.py` решает балансы дома и бака; `pipeline.py` агрегирует и проверяет выходы. Визуализация полностью локальная, на Canvas, без CDN и телеметрии.
+`main.py` - каноническая точка запуска. Он вызывает компонент через реестр в `src/hackowatt/components/`: `generate`, `dashboard`, `forecast` или `forecast-dashboard`. Генератор остаётся переиспользуемой библиотечной функцией в `pipeline.py`; будущие компоненты могут вызывать её или читать её `hourly.csv`, не меняя simulation code. `inputs.py` проверяет источники и параметры; `behaviour.py` создаёт расписания; `devices.py` связывает деятельность с приборами; `thermal.py` решает балансы дома и бака. Визуализация полностью локальная, на Canvas, без CDN и телеметрии. Полная схема и пример добавления компонента: `docs/architecture.md`.
 
 Это **локальный Git-репозиторий**. Исходные данные, правила и код отслеживаются Git. `results/` и `.venv/` исключены, чтобы не создавать огромные коммиты; уже сгенерированные файлы при этом остаются на компьютере. Удалённый репозиторий не настроен.

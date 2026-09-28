@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hackowatt-family"
+version = "0.1.0"
+description = "Composable synthetic household-energy data application"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<4",
+  "tzdata>=2025.1",
+  "reportlab>=4,<5",
+  "Pillow>=10,<13",
+]
+
+[project.scripts]
+hackowatt = "hackowatt.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+hackowatt = ["dashboard.html"]
