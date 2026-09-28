@@ -9,7 +9,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from hackowatt.ml_benchmark import LAG_NAMES, _recursive_residual_forecast, prepare_training_data
+from hackowatt.forecast_model import LAG_NAMES, _recursive_residual_forecast, prepare_training_data
 from hackowatt.issue_date_forecast import selected_model_for_horizon
 
 
@@ -18,7 +18,7 @@ class ZeroRegressor:
         return np.zeros(len(x))
 
 
-class ModelBenchmarkPreparationTests(unittest.TestCase):
+class ForecastModelPreparationTests(unittest.TestCase):
     @staticmethod
     def write_hourly_fixture(path: Path) -> None:
         """Write a minimal complete hourly contract without generated outputs."""

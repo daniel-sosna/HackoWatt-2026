@@ -1,4 +1,0 @@
-model_id,architecture,algorithm,horizon_hours,mae,rmse,wape_pct,bias_kwh,n_hours
-direct_random_forest,direct_residual,random_forest,24,0.419313,0.558465,88.438931,0.107473,24
-modular_catboost,modular_physical_boiler,catboost,72,0.412056,0.665427,91.865772,0.074111,72
-modular_catboost,modular_physical_boiler,catboost,168,0.389897,0.658209,83.486830,0.069731,168

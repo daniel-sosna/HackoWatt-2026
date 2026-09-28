@@ -2,9 +2,11 @@
 
 ## Project purpose and entry points
 
-This repository models and forecasts synthetic hourly electricity demand for a Silesian family home. Use Python 3.11+ and run commands from the repository root.
+This repository generates synthetic hourly electricity demand for a Silesian
+family home and provides a configurable issue-date forecast model. Use Python
+3.11+ and run commands from the repository root.
 
-Create and activate a local virtual environment before installing dependencies or running the application:
+Create and activate a local virtual environment before installing dependencies:
 
 ```bash
 python -m venv .venv
@@ -12,47 +14,39 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Keep the environment in `.venv/`; it is local-only and must not be committed. When shell activation is unavailable, run commands with `.venv/bin/python` explicitly.
-
-Use `requirements.txt` for normal development and runtime installs. Use `requirements-tested.txt` when reproducing the exact dependency versions used by the retained validation checks.
-
-Use the application entry point for routine work:
+Use `main.py` for the retained components:
 
 ```bash
 python main.py generate
 python main.py dashboard
-python main.py forecast
-python main.py forecast-dashboard
-python main.py model-benchmark
+python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
 ```
 
-`main.py` delegates to components in `src/hackowatt/components/`. Put a new user-facing capability in a component and register it in the application; do not add business logic to a legacy root wrapper. The generator is reusable from Python as `hackowatt.pipeline.generate(...)`.
+For non-technical PyCharm use, edit and run `run_issue_date_forecast.py`.
 
 ## Data and scenario rules
 
-- Treat `data/raw/` and supplied organiser PDFs/DOCX files as immutable source material. Do not edit, translate, or overwrite them.
-- Treat `results/` as generated output. Do not hand-edit it; regenerate it after changing rules, configuration, or generator code.
-- Keep timestamps unambiguous. `timestamp_utc` is the canonical physical-hour index; source weather timestamps are Polish local time (`Europe/Warsaw`), and source wind speed is km/h.
-- The default scenario has direct electric heating and a separate electric boiler. It has improved insulation and passive night ventilation, but no PV, battery, heat pump, or air conditioner. Do not introduce these technologies silently.
+- Treat `data/raw/` and supplied organiser PDFs/DOCX files as immutable source material.
+- Treat `results/` as generated output. Do not hand-edit it.
+- Keep timestamps unambiguous. `timestamp_utc` is the canonical physical-hour index; source weather timestamps are Polish local time (`Europe/Warsaw`) and wind speed is km/h.
+- The default scenario has direct electric heating and a separate electric boiler. It has improved insulation and passive night ventilation, but no PV, battery, heat pump, or air conditioner.
 - Maintain the jointly planned family-vacation policy: 20 working days per parent each year in blocks of 10 summer days, 5 winter days, and 5 spring/autumn days. The whole family is away during a vacation.
 
-## Forecasting safeguards
+## Forecast safeguards
 
-- Forecasts may use only values known at the issue time: past measurements, issued weather forecasts, calendars, and planned schedules.
-- Never train or evaluate with future measured `total_kwh`, appliance loads, occupancy, indoor temperature, or boiler temperature as a feature.
-- Keep the seasonal-naive baseline in the legacy forecast component. The model benchmark must train through April 2025 and report only the 24-, 72-, and 168-hour horizons from the May 2025 forecast start.
+- The public integration boundary is `hackowatt.issue_date_forecast`.
+- Forecasts may use only values known at issue time: past measurements, issued weather forecasts, calendars, and planned schedules.
+- Never use future measured `total_kwh`, appliance loads, occupancy, indoor temperature, or boiler temperature as model features.
+- Keep the selected-model policy: Direct Random Forest for 24 hours and Modular CatBoost for 72 or 168 hours.
 
 ## Testing policy
 
-- Do not write general-purpose tests for application wiring, command registration, dashboards, or end-to-end workflows.
-- Keep only simple validation tests for input data contracts and the forecasting, behaviour, device, and thermal models.
-- Retained tests must use small self-contained fixtures; do not version generated outputs or add tests that depend on files under `results/`.
+- Keep only compact, self-contained validation tests for input data contracts and the forecasting, behaviour, device, and thermal models.
+- Do not add tests that depend on files under `results/`.
+- At minimum run `python -m unittest discover -s tests -v`, `python main.py --help`, and `git diff --check` after code or documentation changes.
 
 ## Documentation and verification
 
 - Keep authored documentation and user-facing text in English. Preserve the original language of external source files.
 - Update `docs/rules_v3.md` when changing behavioural or physical assumptions; rebuild and visually review `docs/rules_v3.pdf` if the rules document changes.
-- Update `docs/hourly_data_dictionary.md` when the hourly schema changes and `docs/forecast_models.md` when the forecasting contract changes.
-- At minimum run the retained validation tests with `python -m unittest discover -s tests -v`, `python main.py --help`, and `git diff --check` after code or documentation changes. Regenerate representative outputs when a change affects the data pipeline; do not commit those outputs.
-
-User instructions take precedence over this file.
+- Update `docs/hourly_data_dictionary.md` when the hourly schema changes and `docs/issue_date_forecast_api.md` when the forecast contract changes.

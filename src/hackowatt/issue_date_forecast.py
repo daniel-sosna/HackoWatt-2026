@@ -14,7 +14,7 @@ import tempfile
 
 import pandas as pd
 
-from .ml_benchmark import SELECTED_MODELS, run_model_benchmark
+from .forecast_model import SELECTED_MODELS, run_selected_model
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ def forecast_from_issue_date(request: ForecastRequest) -> ForecastResult:
     # prediction, and boiler simulation. Its temporary files stay private.
     with tempfile.TemporaryDirectory(prefix='hackowatt_issue_date_') as directory:
         work_dir = Path(directory)
-        _, load_metrics, spec = run_model_benchmark(
+        _, load_metrics, spec = run_selected_model(
             hourly_path, work_dir, request.forecast_start_local, horizon_hours=request.horizon_hours)
         loads = pd.read_csv(work_dir/'load_predictions.csv')
         occupancy = pd.read_csv(work_dir/'occupancy_predictions.csv')

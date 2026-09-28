@@ -1,22 +1,22 @@
-"""Preparation, occupancy forecasting, and benchmark models for hourly demand.
+"""Internal training implementation for the configurable issue-date model.
 
-The source hourly.csv is never modified.  This module writes a separate,
-chronological training/test copy and evaluates recursive direct and modular
-forecasts using predicted occupancy only.
+The public boundary is :mod:`hackowatt.issue_date_forecast`. This module keeps
+feature preparation, recursive forecasting, occupancy prediction, and the
+physical boiler calculation together. The source ``hourly.csv`` is read-only.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
 import json
-import pickle
 import shutil
 import tempfile
 
 import numpy as np
 import pandas as pd
 
-from .forecasting import BASE_COLUMNS, THERMAL_COLUMNS, load_hourly
+BASE_COLUMNS = ['fridge_kwh', 'router_kwh', 'standby_kwh']
+THERMAL_COLUMNS = ['space_heating_kwh', 'water_heater_kwh']
 
 WEATHER_COLUMNS = [
     'temperature_2m', 'cloud_cover', 'relative_humidity_2m', 'wind_speed_10m',
@@ -26,17 +26,10 @@ FLAG_COLUMNS = [
     'public_holiday', 'school_break', 'family_vacation', 'school_day', 'ania_wfh',
 ]
 LAG_NAMES = ('lag_1h', 'lag_24h', 'lag_168h', 'mean_24h', 'mean_168h')
-MODEL_NAMES = ('random_forest', 'xgboost', 'catboost')
-BRIGHT_COLOURS = {
-    'direct_random_forest': '#FF006E',
-    'direct_xgboost': '#FB5607',
-    'direct_catboost': '#8338EC',
-    'modular_random_forest': '#00B4D8',
-    'modular_xgboost': '#06D6A0',
-    'modular_catboost': '#3A86FF',
-    'random_forest': '#FF006E',
-    'xgboost': '#FB5607',
-    'catboost': '#8338EC',
+SELECTED_MODELS = {
+    24: 'direct_random_forest',
+    72: 'modular_catboost',
+    168: 'modular_catboost',
 }
 
 
@@ -48,6 +41,18 @@ class PreparedData:
     train: pd.DataFrame
     test: pd.DataFrame
     manifest: dict
+
+
+def load_hourly(path: Path) -> pd.DataFrame:
+    """Load a continuous UTC-indexed hourly data file."""
+    df = pd.read_csv(path, dtype={'vacation_block': 'string'}, low_memory=False)
+    utc = pd.to_datetime(df['timestamp_utc'], utc=True, errors='raise')
+    if not utc.is_monotonic_increasing or utc.duplicated().any():
+        raise ValueError('hourly.csv must have sorted unique UTC timestamps')
+    if not (utc.diff().dropna() == pd.Timedelta(hours=1)).all():
+        raise ValueError('hourly.csv must be continuous at hourly UTC frequency')
+    df.index = utc
+    return df
 
 
 def _numeric(series: pd.Series) -> pd.Series:
@@ -198,13 +203,6 @@ def _new_regressor(name: str):
             n_estimators=40, max_depth=12, max_features=0.85, min_samples_leaf=6,
             n_jobs=1, random_state=20260928,
         )
-    if name == 'xgboost':
-        from xgboost import XGBRegressor
-        return XGBRegressor(
-            n_estimators=100, max_depth=6, learning_rate=0.08,
-            subsample=0.85, colsample_bytree=0.9, objective='reg:squarederror',
-            n_jobs=4, random_state=20260928, tree_method='hist', verbosity=0,
-        )
     if name == 'catboost':
         from catboost import CatBoostRegressor
         return CatBoostRegressor(
@@ -238,13 +236,6 @@ def _new_classifier(name: str):
         return RandomForestClassifier(
             n_estimators=80, max_depth=12, min_samples_leaf=6, class_weight='balanced',
             n_jobs=1, random_state=20260928,
-        )
-    if name == 'xgboost':
-        from xgboost import XGBClassifier
-        return XGBClassifier(
-            n_estimators=100, max_depth=6, learning_rate=0.08, subsample=0.85,
-            colsample_bytree=0.9, objective='binary:logistic', eval_metric='logloss',
-            n_jobs=4, random_state=20260928, tree_method='hist', verbosity=0,
         )
     if name == 'catboost':
         from catboost import CatBoostClassifier
@@ -381,95 +372,23 @@ def _regression_metrics(actual: np.ndarray, prediction: np.ndarray) -> dict:
     }
 
 
-def _save_model(path: Path, model) -> None:
-    with path.open('wb') as handle:
-        pickle.dump(model, handle)
 
+def run_selected_model(hourly_path: Path, output_dir: Path,
+                       forecast_start_local: str, horizon_hours: int) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """Train the configured model policy through one issue date.
 
-def _create_charts(output_dir: Path, occupancy: pd.DataFrame, loads: pd.DataFrame,
-                   occupancy_metrics: pd.DataFrame, load_metrics: pd.DataFrame,
-                   horizon_hours: int) -> None:
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
-
-    def local_time(frame: pd.DataFrame) -> pd.Series:
-        return pd.to_datetime(frame['timestamp_utc'], utc=True).dt.tz_convert('Europe/Warsaw').dt.tz_localize(None)
-
-    def first_window(frame: pd.DataFrame, hours: int) -> pd.DataFrame:
-        timestamps = frame['timestamp_utc'].drop_duplicates().iloc[:hours]
-        return frame[frame['timestamp_utc'].isin(timestamps)].copy()
-
-    def format_time_axis(axis) -> None:
-        locator = mdates.AutoDateLocator(minticks=5, maxticks=10)
-        axis.xaxis.set_major_locator(locator)
-        axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    horizons = [h for h in (24, 72, 168) if h <= horizon_hours]
-    for hours in horizons:
-        occ_window = first_window(occupancy, hours)
-        fig, ax = plt.subplots(figsize=(16, 5))
-        actual_occupancy = occ_window.drop_duplicates('timestamp_utc')
-        ax.plot(local_time(actual_occupancy), actual_occupancy['actual_occupancy_mean'],
-                color='#202020', linewidth=2.4, label='Actual occupancy')
-        for name, group in occ_window.groupby('model_id', sort=False):
-            ax.plot(local_time(group), group['occupancy_hat'], color=BRIGHT_COLOURS[name],
-                    linewidth=1.35, label=f'Predicted: {name}')
-        ax.set(title=f'Occupancy forecast: {hours}-hour horizon',
-               ylabel='Residents at home', xlabel='Polish local time')
-        ax.set_ylim(-0.1, 4.1)
-        ax.grid(alpha=.25)
-        ax.legend(ncol=4, loc='upper right')
-        format_time_axis(ax)
-        fig.tight_layout()
-        fig.savefig(output_dir/f'occupancy_forecast_{hours}h.png', dpi=160)
-        plt.close(fig)
-
-        load_window = first_window(loads, hours)
-        fig, ax = plt.subplots(figsize=(16, 5))
-        actual_load = load_window.drop_duplicates('timestamp_utc')
-        ax.plot(local_time(actual_load), actual_load['actual_total_kwh'], color='#202020',
-                linewidth=2.3, label='Actual total load')
-        for name, group in load_window.groupby('model_id', sort=False):
-            ax.plot(local_time(group), group['load_hat'], color=BRIGHT_COLOURS[name],
-                    linewidth=1.05, label=name.replace('_', ' '))
-        ax.set(title=f'Recursive load forecasts: {hours}-hour horizon',
-               ylabel='Energy per hour (kWh)', xlabel='Polish local time')
-        ax.grid(alpha=.25)
-        ax.legend(ncol=3, loc='upper right')
-        format_time_axis(ax)
-        fig.tight_layout()
-        fig.savefig(output_dir/f'load_forecast_{hours}h.png', dpi=160)
-        plt.close(fig)
-
-    chart_sections = ''.join(
-        f'<h2>Occupancy forecast: {hours} hours</h2><img src="occupancy_forecast_{hours}h.png">'
-        f'<h2>Load forecast: {hours} hours</h2><img src="load_forecast_{hours}h.png">'
-        for hours in horizons
-    )
-
-    html = f'''<!doctype html><html><head><meta charset="utf-8"><title>HackoWatt model benchmark</title>
-<style>body{{font-family:Arial,sans-serif;margin:32px;background:#f5f7fb;color:#172033}}h1,h2{{color:#12263f}}img{{max-width:100%;background:white;padding:8px;border-radius:8px;margin:8px 0 28px}}table{{border-collapse:collapse;background:white;margin-bottom:28px}}th,td{{padding:8px 12px;border:1px solid #d8dee9}}th{{background:#12263f;color:white}}</style>
-</head><body><h1>Load and occupancy model benchmark</h1><p>All load models use predicted occupancy, calendar flags, weather, and only energy history available before each recursively predicted hour.</p>
-<h2>Occupancy metrics</h2>{occupancy_metrics.round(4).to_html(index=False)}
-<h2>Load metrics</h2>{load_metrics.round(4).to_html(index=False)}
-{chart_sections}</body></html>'''
-    (output_dir/'benchmark_dashboard.html').write_text(html, encoding='utf-8')
-
-
-def run_model_benchmark(hourly_path: Path, output_dir: Path,
-                        forecast_start_local: str = '2025-05-01 00:00:00',
-                        horizon_hours: int = 168) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Prepare data and compare residual direct and physical-boiler forecasts."""
+    A 24-hour request trains Random Forest; 72- and 168-hour requests train
+    CatBoost. The unselected architecture is calculated only inside the same
+    selected algorithm to preserve the common output contract, then discarded
+    with the temporary working directory owned by the public API.
+    """
     prepared = prepare_training_data(hourly_path, output_dir, forecast_start_local, horizon_hours)
     df = load_hourly(hourly_path)
     house = _load_house_parameters(hourly_path)
     base, targets, cutoff = prepared.base_features, prepared.targets, prepared.cutoff
     end = cutoff + len(prepared.test)
-    reported_horizons = [h for h in (24, 72, 168) if h <= horizon_hours]
-    models_dir = output_dir/'models'; models_dir.mkdir(exist_ok=True)
+    reported_horizons = [horizon_hours]
+    active_algorithms = ('random_forest',) if horizon_hours == 24 else ('catboost',)
     occupancy_rows: list[dict] = []
     water_draw_rows: list[dict] = []
     load_rows: list[dict] = []
@@ -478,10 +397,9 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
     actual_occupancy = targets['occupancy_mean'].to_numpy(float)
     actual_total = targets['total_kwh'].to_numpy(float)
 
-    for algorithm in MODEL_NAMES:
+    for algorithm in active_algorithms:
         occupancy_model = _fit_regressor(algorithm, base.iloc[:cutoff].to_numpy(float), actual_occupancy[:cutoff])
         occupancy_hat = np.clip(occupancy_model.predict(base.to_numpy(float)), 0.0, 4.0)
-        _save_model(models_dir/f'occupancy_{algorithm}.pkl', occupancy_model)
         occupancy_test = occupancy_hat[cutoff:]
         for horizon in reported_horizons:
             occupancy_metric_rows.append({'model_id': algorithm, 'horizon_hours': horizon,
@@ -497,7 +415,6 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
 
         direct_x, direct_y = _residual_training_matrix(base, occupancy_hat, actual_total, cutoff)
         direct_model = _fit_regressor(algorithm, direct_x, direct_y)
-        _save_model(models_dir/f'direct_{algorithm}.pkl', direct_model)
         direct_hat = _recursive_residual_forecast(direct_model, base, occupancy_hat, actual_total, cutoff, end)
         direct_id = f'direct_{algorithm}'
         for horizon in reported_horizons:
@@ -509,7 +426,6 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
             target = targets[component].to_numpy(float)
             x, y = _residual_training_matrix(base, occupancy_hat, target, cutoff)
             model = _fit_regressor(algorithm, x, y)
-            _save_model(models_dir/f'modular_{component}_{algorithm}.pkl', model)
             component_hats[component] = _recursive_residual_forecast(model, base, occupancy_hat, target, cutoff, end)
         # Heating responds to the weather regime itself. A weekly energy baseline
         # is unsafe during spring/fall changes, e.g. a cold prior week followed
@@ -518,12 +434,9 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
         heating_x_train = np.column_stack([base.iloc[:cutoff].to_numpy(float), occupancy_hat[:cutoff]])
         heating_x_future = np.column_stack([base.iloc[cutoff:end].to_numpy(float), occupancy_hat[cutoff:end]])
         heating_model = _fit_regressor(algorithm, heating_x_train, heating_target[:cutoff])
-        _save_model(models_dir/f'modular_space_heating_kwh_{algorithm}.pkl', heating_model)
         component_hats['space_heating_kwh'] = np.maximum(0.0, heating_model.predict(heating_x_future))
         draw_hat, event_probability, event_threshold, event_model, volume_model = _forecast_hot_water_draws(
             algorithm, base, occupancy_hat, targets['hot_water_mixed_l'].to_numpy(float), cutoff, end)
-        _save_model(models_dir/f'hot_water_event_{algorithm}.pkl', event_model)
-        _save_model(models_dir/f'hot_water_volume_{algorithm}.pkl', volume_model)
         component_hats['water_heater_kwh'], tank_hat = _simulate_boiler_from_draw_forecast(draw_hat, df, cutoff, house)
         modular_hat = sum(component_hats.values())
         modular_id = f'modular_{algorithm}'
@@ -569,11 +482,10 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
     load_predictions.to_csv(output_dir/'load_predictions.csv', index=False, float_format='%.6f')
     occupancy_metrics.to_csv(output_dir/'occupancy_metrics.csv', index=False, float_format='%.6f')
     load_metrics.to_csv(output_dir/'load_metrics.csv', index=False, float_format='%.6f')
-    _create_charts(output_dir, occupancy_predictions, load_predictions, occupancy_metrics, load_metrics, horizon_hours)
     spec = {
         **prepared.manifest,
-        'occupancy_models': list(MODEL_NAMES),
-        'load_models': [f'{architecture}_{algorithm}' for architecture in ('direct_residual', 'modular_physical_boiler') for algorithm in MODEL_NAMES],
+        'occupancy_models': list(active_algorithms),
+        'load_models': [f'{architecture}_{algorithm}' for architecture in ('direct_residual', 'modular_physical_boiler') for algorithm in active_algorithms],
         'load_features': list(base.columns) + ['occupancy_hat'] + list(LAG_NAMES),
         'direct_model_rule': 'Predict the correction to the observed same hour one week earlier, then add that weekly baseline.',
         'modular_rule': 'Base and behaviour are weekly-residual models. Space heating is a direct weather-response model. The boiler is simulated from thresholded hot-water event probability/volume, the observed same hour one week earlier, and the observed tank state before forecast issue.',
@@ -586,166 +498,3 @@ def run_model_benchmark(hourly_path: Path, output_dir: Path,
     }
     (output_dir/'benchmark_spec.json').write_text(json.dumps(spec, indent=2), encoding='utf-8')
     return occupancy_metrics, load_metrics, spec
-
-
-SELECTED_MODELS = {
-    24: 'direct_random_forest',
-    72: 'modular_catboost',
-    168: 'modular_catboost',
-}
-
-SELECTED_ARTIFACTS = {
-    'direct_random_forest_24h': [
-        'occupancy_random_forest.pkl',
-        'direct_random_forest.pkl',
-    ],
-    'modular_catboost_72h_168h': [
-        'occupancy_catboost.pkl',
-        'modular_base_kwh_catboost.pkl',
-        'modular_behaviour_kwh_catboost.pkl',
-        'modular_space_heating_kwh_catboost.pkl',
-        'hot_water_event_catboost.pkl',
-        'hot_water_volume_catboost.pkl',
-    ],
-}
-
-
-def _create_selected_prediction_charts(output_dir: Path, forecasts: dict[int, pd.DataFrame]) -> None:
-    """Create only the three charts belonging to the approved model policy."""
-    import matplotlib.dates as mdates
-    import matplotlib.pyplot as plt
-
-    for horizon, frame in forecasts.items():
-        times = pd.to_datetime(frame['timestamp_local'])
-        fig, axis = plt.subplots(figsize=(16, 5))
-        axis.plot(times, frame['actual_total_kwh'], color='#202020', linewidth=2.4,
-                  label='Actual total load')
-        axis.plot(times, frame['forecast_kwh'], color='#FF006E' if horizon == 24 else '#3A86FF',
-                  linewidth=1.7, label=f"Selected forecast: {frame['model_id'].iloc[0].replace('_', ' ')}")
-        axis.set(title=f'Selected load forecast: {horizon}-hour horizon',
-                 ylabel='Energy per hour (kWh)', xlabel='Polish local time')
-        axis.grid(alpha=.25)
-        axis.legend(loc='upper right')
-        locator = mdates.AutoDateLocator(minticks=5, maxticks=10)
-        axis.xaxis.set_major_locator(locator)
-        axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-        fig.tight_layout()
-        fig.savefig(output_dir/f'forecast_{horizon}h.png', dpi=160)
-        plt.close(fig)
-
-
-def create_selected_prediction_package(hourly_path: Path, output_dir: Path,
-                                       forecast_start_local: str) -> pd.DataFrame:
-    """Train the benchmark privately and publish only the approved forecast files.
-
-    The package deliberately contains exogenous forecast inputs and selected
-    outputs only.  Training copies, alternative models, and intermediate model
-    files are placed in a temporary directory and are discarded after selection.
-    """
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
-    input_dir = output_dir/'input'
-    output_data_dir = output_dir/'output'
-    input_dir.mkdir(parents=True)
-    output_data_dir.mkdir()
-
-    with tempfile.TemporaryDirectory(prefix='hackowatt_selected_prediction_') as temporary:
-        working_dir = Path(temporary)
-        _, load_metrics, spec = run_model_benchmark(
-            hourly_path, working_dir, forecast_start_local, horizon_hours=168)
-        prepared = prepare_training_data(hourly_path, working_dir/'input_copy', forecast_start_local, 168)
-        loads = pd.read_csv(working_dir/'load_predictions.csv')
-        occupancy = pd.read_csv(working_dir/'occupancy_predictions.csv')
-
-        feature_input = prepared.base_features.iloc[prepared.cutoff:prepared.cutoff+168].copy()
-        feature_input.insert(0, 'timestamp_local', feature_input.index.tz_convert('Europe/Warsaw').astype(str))
-        feature_input.insert(0, 'timestamp_utc', feature_input.index.astype(str))
-        feature_input.to_csv(input_dir/'forecast_features.csv', index=False, float_format='%.6f')
-
-        model_dir = output_dir/'model'
-        artifact_dir = model_dir/'artifacts'
-        artifact_dir.mkdir(parents=True)
-        # Preserve precisely the selected fitted models and their real training
-        # copy for hand-off. No competing algorithms are copied into the package.
-        for files in SELECTED_ARTIFACTS.values():
-            for filename in files:
-                shutil.copy2(working_dir/'models'/filename, artifact_dir/filename)
-        shutil.copy2(working_dir/'input_copy'/'train_model_dataset.csv', model_dir/'training_dataset.csv')
-        shutil.copy2(working_dir/'input_copy'/'feature_manifest.json', model_dir/'feature_manifest.json')
-        shutil.copy2(hourly_path.parent/'resolved_house.json', model_dir/'resolved_house.json')
-        (model_dir/'requirements.txt').write_text(
-            'numpy>=1.26,<3\npandas>=2.2,<4\nscikit-learn>=1.6,<1.7\ncatboost>=1.2,<1.3\n',
-            encoding='utf-8')
-
-        issue = {
-            'forecast_start_local': spec['forecast_start_local'],
-            'source_hourly_csv': str(hourly_path),
-            'selected_models_by_horizon_hours': SELECTED_MODELS,
-            'input_file': 'input/forecast_features.csv',
-            'input_rule': 'The input contains only known calendar and weather features. Occupancy is forecast internally; future measured occupancy, load, tank temperature, and water draw are excluded.',
-            'output_rule': 'Each output CSV is a bounded backtest forecast. actual_total_kwh is retained only to evaluate this historical September run.',
-        }
-        (input_dir/'forecast_issue.json').write_text(json.dumps(issue, indent=2), encoding='utf-8')
-
-        package_manifest = {
-            'package_type': 'HackoWatt selected forecast model hand-off',
-            'forecast_start_local': spec['forecast_start_local'],
-            'training_rows': prepared.manifest['rows_train'],
-            'training_ends_before_forecast': True,
-            'selected_models_by_horizon_hours': SELECTED_MODELS,
-            'artifacts': SELECTED_ARTIFACTS,
-            'runtime_inputs_required': [
-                'calendar and weather features for every requested forecast hour',
-                'at least 168 hourly total-load observations before issue time',
-                'at least 168 hourly hot-water-draw observations before issue time for the modular model',
-                'tank_c and water_heater_kwh from the last observed hour for the modular model',
-            ],
-            'runtime_policy': 'Use main.py selected-prediction with a source hourly.csv and --forecast-start-local for retraining at another historical issue date. The retained pickles reproduce this fitted September package; retraining is required when the history changes.',
-        }
-        (model_dir/'package_manifest.json').write_text(json.dumps(package_manifest, indent=2), encoding='utf-8')
-        (model_dir/'DEVELOPER_HANDOFF.md').write_text('''# Selected forecast model hand-off
-
-This directory contains only the approved model policy: Direct Random Forest at 24 hours and Modular CatBoost at 72 and 168 hours. The fitted artifacts reproduce the September 2025 backtest. `training_dataset.csv` is the chronological training data ending immediately before the forecast issue time. `feature_manifest.json` defines its features, targets, and time boundary. `resolved_house.json` provides the physical boiler parameters used by the modular forecast.
-
-## Run on another issue date
-
-Use the repository entry point, which retrains from all rows preceding the requested local issue time and then writes the compact package:
-
-```powershell
-.venv\\Scripts\\python.exe main.py selected-prediction --input results/default/hourly.csv --output results/prediction --forecast-start-local "2025-09-10 00:00:00"
-```
-
-For a live deployment, replace the historical portion of `hourly.csv` with measured household history and provide issued weather/calendar inputs for the future window. The model must receive at least 168 prior hourly load observations. The modular forecast also needs the current tank temperature, prior heater state, and 168 hours of hot-water-draw history. Do not populate future measured load, occupancy, tank temperature, or hot-water draw.
-
-The pickles require the versions listed in `requirements.txt`. Use the application command for retraining and inference because it applies recursive lag handling and the physical boiler simulation around the fitted estimators.
-''', encoding='utf-8')
-
-        forecasts: dict[int, pd.DataFrame] = {}
-        selected_metrics: list[dict] = []
-        for horizon, model_id in SELECTED_MODELS.items():
-            prediction = loads.loc[loads['model_id'].eq(model_id)].head(horizon).copy()
-            occupancy_model = 'random_forest' if model_id == 'direct_random_forest' else 'catboost'
-            occupancy_prediction = occupancy.loc[occupancy['model_id'].eq(occupancy_model)].head(horizon)
-            prediction['occupancy_hat'] = occupancy_prediction['occupancy_hat'].to_numpy()
-            prediction = prediction.rename(columns={'load_hat': 'forecast_kwh'})
-            keep = ['timestamp_utc', 'timestamp_local', 'model_id', 'forecast_kwh', 'actual_total_kwh',
-                    'occupancy_hat', 'base_hat', 'behaviour_hat', 'space_heating_hat',
-                    'water_heater_hat', 'water_draw_hat_l', 'tank_hat_c']
-            prediction = prediction[keep]
-            prediction.to_csv(output_data_dir/f'forecast_{horizon}h.csv', index=False, float_format='%.6f')
-            forecasts[horizon] = prediction
-            metric = load_metrics.loc[(load_metrics['model_id'].eq(model_id)) &
-                                      (load_metrics['horizon_hours'].eq(horizon))].iloc[0].to_dict()
-            selected_metrics.append(metric)
-
-    metrics = pd.DataFrame(selected_metrics).sort_values('horizon_hours')
-    metrics.to_csv(output_data_dir/'selected_metrics.csv', index=False, float_format='%.6f')
-    _create_selected_prediction_charts(output_dir, forecasts)
-    dashboard = f'''<!doctype html><html><head><meta charset="utf-8"><title>HackoWatt selected prediction</title>
-<style>body{{font-family:Arial,sans-serif;margin:32px;background:#f5f7fb;color:#172033}}h1,h2{{color:#12263f}}img{{max-width:100%;background:white;padding:8px;border-radius:8px;margin:8px 0 28px}}table{{border-collapse:collapse;background:white;margin-bottom:28px}}th,td{{padding:8px 12px;border:1px solid #d8dee9}}th{{background:#12263f;color:white}}</style>
-</head><body><h1>Selected load forecasts</h1><p>24 hours: Direct Random Forest. 72 and 168 hours: Modular CatBoost. This is a historical backtest from {forecast_start_local} in Polish local time.</p>
-<h2>Metrics</h2>{metrics.round(4).to_html(index=False)}
-{''.join(f'<h2>{hours}-hour forecast</h2><img src="forecast_{hours}h.png">' for hours in SELECTED_MODELS)}
-</body></html>'''
-    (output_dir/'prediction_dashboard.html').write_text(dashboard, encoding='utf-8')
-    return metrics
