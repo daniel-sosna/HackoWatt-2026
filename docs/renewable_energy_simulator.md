@@ -1,19 +1,22 @@
 # Renewable Energy Simulator
 
-The `renewable-dashboard` component turns the generated household history into
-an offline, interactive rooftop-PV investment simulator. It covers the five
-challenge outputs for a selected installation capacity and compares current
-habits with learned, user-editable activity shifting.
+The unified Streamlit dashboard turns the generated household history into a
+rooftop-PV planning view. It covers the main challenge outputs for a selected
+installation capacity and exposes conservative, learned flexible-load
+candidates.
+
+The former self-contained HTML simulator and its import/control details below
+are retained as an archived reference in `hackowatt.legacy`. New work should
+extend the maintained service and Streamlit view, rather than adding a second
+dashboard pipeline.
 
 ```powershell
 python main.py generate
-python main.py forecast
-python main.py renewable-dashboard
+python main.py dashboard
 ```
 
-Open `results/renewable/renewable_energy_simulator.html`. The file contains its
-data and code, needs no server, makes no network requests and can be copied to a
-demo computer.
+Open the local Streamlit address shown by the `dashboard` command and select
+**PV planning**. The dashboard needs no external data service.
 
 The interface has four bookmarkable views:
 
@@ -139,22 +142,11 @@ The result remains advisory because the supplied temperatures and house
 parameters are synthetic. The dashboard states that control hardware/software
 cost is not included in package payback.
 
-## Forecast and live-data contracts
+## Archived forecast and integration contracts
 
-`python main.py forecast` supplies the default Tomorrow view from the latest
-rolling-origin validation horizon. The page shows demand, PV, tariff, an
-empirical 10--90% residual interval, forecast issue time, WAPE, peak-time error,
-and separate component estimates at the largest predicted peaks. Recorded weather in
-this validation output is clearly labelled as a perfect-weather assumption.
-
-A real provider or team service can replace that backtest without changing the
-interface:
-
-```powershell
-python main.py renewable-dashboard `
-  --issued-forecast results/team/issued_forecast.csv `
-  --sensor-state results/team/sensor_state.json
-```
+`python main.py forecast` produces rolling-origin forecast artifacts for the
+maintained **Forecast quality** view. The former offline simulator contract is
+retained for a future forecast-import service; it is not a registered command.
 
 The issued forecast requires hourly, increasing `timestamp_utc`, `load_kwh`,
 `outdoor_c`, `wind_ms`, and `radiation_wm2` for at least 24 hours. Optional
@@ -166,14 +158,11 @@ time is shown as unknown. Imports are static snapshots, not automatic live feeds
 Thermal control requires all three component/draw columns: `space_heating_kwh`,
 `water_heating_kwh` and `hot_water_draw_l`.
 
-## Colleague model contract
+## Archived colleague model contract
 
-A forecast or controller from another team member can replace the dashboard's
-load and occupancy input without changing the UI:
-
-```powershell
-python main.py renewable-dashboard --model-profile results/team/model_profile.csv
-```
+A future model-profile import service can use the following static CSV contract.
+The current unified dashboard deliberately consumes the generated household
+profile so that all views have one consistent source of demand.
 
 The CSV contract is:
 

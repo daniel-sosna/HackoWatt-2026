@@ -1,7 +1,8 @@
 # Exact dependency set used for the retained validation checks.
 numpy==2.5.3
-pandas==3.0.6
+pandas==2.3.3
 tzdata==2026.4
 reportlab==4.5.1
 Pillow==12.3.0
 lxml==6.1.1
+streamlit==1.40.0

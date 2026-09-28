@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / 'src'))
 from hackowatt.components.renewable_energy import (apply_model_profile,
                                                     build_issued_forecast_payload)
 from hackowatt.renewable import (ECONOMIC_MODES, energy_balance, local_tariff,
-                                 normalized_pv_profile, prepare_flexible_events)
+                                 evaluate_pv, normalized_pv_profile, prepare_flexible_events)
 
 
 class RenewableEnergyTests(unittest.TestCase):
@@ -36,6 +36,19 @@ class RenewableEnergyTests(unittest.TestCase):
                                'shortwave_radiation_instant': radiation})
         profile = normalized_pv_profile(hourly, 975)
         self.assertAlmostEqual(profile.sum(), 975, places=8)
+
+    def test_pv_evaluation_keeps_energy_flow_and_economics_together(self):
+        index = pd.date_range('2025-01-01', periods=24, freq='h', tz='UTC')
+        hourly = pd.DataFrame({
+            'timestamp_utc': index,
+            'total_kwh': np.full(24, 1.0),
+            'shortwave_radiation_instant': np.maximum(np.sin(np.arange(24) * np.pi / 24), 0),
+        })
+        result = evaluate_pv(hourly, 2.0, 900, ECONOMIC_MODES['hackathon'])
+        self.assertAlmostEqual(result['pv_kwh'], 1800, places=8)
+        self.assertLessEqual(result['self_used_kwh'], 24)
+        self.assertEqual(result['capex'], 2600)
+        self.assertGreater(result['annual_savings'], 0)
 
     def test_flexible_event_encoding_preserves_energy(self):
         index = pd.date_range('2025-01-01', periods=8, freq='h', tz='UTC')

@@ -14,14 +14,12 @@ python -m pip install -r requirements.txt
 
 Use `requirements.txt` for normal development and runtime installs. Use `requirements-tested.txt` instead when reproducing the exact dependency versions used by the retained validation checks. On Windows, activate with `.venv\\Scripts\\activate`.
 
-Run `main.py` with the required component. Generation dates come from the weather file and are not set separately. After running `dashboard`, open `results/default/dashboard.html`; no server or internet connection is required.
+Run `main.py` with the required component. Generation dates come from the weather file and are not set separately. `dashboard` starts the unified local Streamlit application.
 
 ```bash
 python main.py generate
-python main.py dashboard
 python main.py forecast
-python main.py forecast-dashboard
-python main.py renewable-dashboard
+python main.py dashboard
 python -m unittest discover -s tests -v
 ```
 
@@ -72,20 +70,17 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 ## Forecasting
 
-`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` creates the offline comparison dashboard at `results/forecast/forecast_dashboard.html`. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
+`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. View the comparison in the **Forecast quality** page of `python main.py dashboard`. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
 
 ## Renewable Energy Simulator
 
-`python main.py renewable-dashboard` builds the offline interactive simulator at
-`results/renewable/renewable_energy_simulator.html`. It compares multiple PV
-capacities, reports all five investment outputs required by the challenge, and
-shows payback for current habits and learned activity shifting. It includes
-separate Hackathon and editable Poland economic modes. Run `generate` first so
-the simulator can learn washing-machine and dishwasher defaults from
-`appliance_events.csv`. The simulator also provides device-level usage insights,
-concrete scheduling recommendations, editable weekday/weekend presence and an
-optional `--model-profile` adapter for a colleague's load/occupancy model. The
-formulas, terminology, integration contract and limitations are documented in
+The **PV planning** page in `python main.py dashboard` evaluates selected PV
+capacity and specific yield against the unchanged generated demand profile. It
+reports generation, self-consumption, demand coverage, CAPEX, first-year
+savings and simple payback using the selected Hackathon or Poland economic mode.
+Run `generate` first so the dashboard can also expose conservative
+washing-machine and dishwasher shifting candidates from `appliance_events.csv`.
+The formulas, terminology and limitations are documented in
 `docs/renewable_energy_simulator.md`. The evidence-backed design for replacing
 the heating and hot-water percentage proxies with a calibrated thermal digital
 twin and rolling model predictive controller is in `docs/thermal_mpc_design.md`.
@@ -94,7 +89,8 @@ and five-minute demo path are in `docs/product_strategy.md`.
 
 `python tools/build_simulator_handbook_pdf.py` creates the presentation-ready,
 printable methodology handbook at `output/pdf/HackoWatt_Simulator_Handbook.pdf`.
-Run `renewable-dashboard` afterwards to copy the PDF beside the offline app.
+The prior offline exporter is archived under `hackowatt.legacy`; the maintained
+dashboard does not copy presentation files into generated results.
 
 ## Sources and time handling
 
@@ -112,6 +108,6 @@ The configuration supplies the random seed. Separate random streams are used for
 
 ## Code structure
 
-`main.py` is the canonical entry point. It invokes a registered component in `src/hackowatt/components/`: `generate`, `dashboard`, `forecast`, `forecast-dashboard`, or `renewable-dashboard`. The generator remains reusable as the library function in `pipeline.py`; future components can call it or read its `hourly.csv` without modifying simulation code. `inputs.py` validates sources and parameters; `behaviour.py` creates schedules; `devices.py` maps activities to appliances; `thermal.py` solves the house and tank balances. Visualisation is fully local, rendered on Canvas, and has no CDN or telemetry. See `docs/architecture.md` for the complete diagram and a component example.
+`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified Streamlit dashboard calls services and contains no simulation, forecasting, or PV calculations. Compatibility imports preserve the prior public module names; archived standalone HTML renderers live in `hackowatt.legacy` and are not part of the maintained application path. See `docs/architecture.md` for the full diagram and extension guidance.
 
 This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.

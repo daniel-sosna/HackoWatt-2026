@@ -3,32 +3,13 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Protocol, Sequence
 
+from ..config import ProjectPaths
 
-@dataclass(frozen=True)
-class ProjectContext:
-    """Stable project paths passed to every component."""
-
-    root: Path
-
-    @classmethod
-    def discover(cls, requested_root: str | Path | None = None) -> 'ProjectContext':
-        """Find a repository checkout for source and editable installations."""
-        candidates = ([Path(requested_root)] if requested_root else []) + [
-            Path.cwd(), Path(__file__).resolve().parents[3],
-        ]
-        for candidate in candidates:
-            root = candidate.resolve()
-            if (root / 'config').is_dir() and (root / 'data').is_dir() and (root / 'src').is_dir():
-                return cls(root)
-        raise FileNotFoundError(
-            'Could not locate a HackoWatt project root. Run from the repository root or pass --project-root PATH.')
-
-    def path(self, value: str | Path) -> Path:
-        path = Path(value)
-        return path if path.is_absolute() else self.root / path
+# Kept as an alias so existing component integrations do not break. New code
+# imports ProjectPaths directly from hackowatt.config.
+ProjectContext = ProjectPaths
 
 
 class Component(Protocol):

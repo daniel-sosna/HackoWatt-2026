@@ -34,10 +34,10 @@ The project environment does not include CatBoost, LightGBM, XGBoost, or scikit-
 
 ```bash
 python main.py forecast
-python main.py forecast-dashboard
+python main.py dashboard
 ```
 
-`results/forecast/forecast_predictions.csv` follows the required contract: `timestamp_utc`, `horizon_h`, `load_hat`, `model_id`, plus component forecasts for the modular model. `forecast_metrics.csv` contains the comparison. `forecast_model_spec.json` records the split, features, explicitly excluded leakage columns, and model state. `forecast_dashboard.html` shows a selected forecast origin and horizon.
+`results/forecast/forecast_predictions.csv` follows the required contract: `timestamp_utc`, `horizon_h`, `load_hat`, `model_id`, plus component forecasts for the modular model. `forecast_metrics.csv` contains the comparison. `forecast_model_spec.json` records the split, features, explicitly excluded leakage columns, and model state. The unified dashboard's **Forecast quality** page shows a selected forecast origin and horizon.
 
 ## Moving to a real home
 
@@ -52,7 +52,7 @@ is selected retrospectively by validation WAPE, not on an independent holdout.
 Direct-total predictions and modular component estimates are displayed as
 separate estimates and must not be described as an exact decomposition.
 
-`renewable-dashboard --issued-forecast` accepts a static CSV snapshot with at
+The archived offline renewable exporter accepts an `--issued-forecast` static CSV snapshot with at
 least 24 consecutive UTC hours: `timestamp_utc`, `load_kwh`, `outdoor_c`,
 `wind_ms` and `radiation_wm2`. Energy, wind and irradiance must be finite and
 nonnegative; temperature may be negative. Optional `issued_at_utc` must be one

@@ -9,11 +9,12 @@ description = "Composable synthetic household-energy data application"
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.26,<3",
-  "pandas>=2.2,<4",
+  "pandas>=2.2,<3",
   "tzdata>=2025.1",
   "reportlab>=4,<5",
   "Pillow>=10,<13",
   "lxml>=6,<7",
+  "streamlit>=1.40,<2",
 ]
 
 [project.scripts]
@@ -23,4 +24,4 @@ hackowatt = "hackowatt.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-hackowatt = ["dashboard.html", "renewable_dashboard.html", "renewable_style.css", "renewable_engine.js", "renewable_ui.js", "simulator_methodology.html"]
+hackowatt.legacy = ["assets/*.html", "assets/*.css", "assets/*.js"]
