@@ -55,7 +55,8 @@ editable financial scenario, not a full statutory net-billing settlement.
 
 The presentation handbook documents equations, constants, literature, worked
 examples, sources, limitations and jury questions. Its generated version is
-`results/renewable/simulator_methodology.html`.
+`results/renewable/simulator_methodology.html`; the designed PDF edition is
+`output/pdf/HackoWatt_Simulator_Handbook.pdf`.
 
 ## Run the demonstration
 

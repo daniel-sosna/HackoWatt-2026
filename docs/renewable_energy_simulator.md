@@ -32,6 +32,16 @@ formulas, sources, worked results, constants, integration contracts, limitations
 and a five-minute demo script. Both generated HTML files are self-contained.
 Copy them together so the handbook link works offline.
 
+Build the designed PDF edition with:
+
+```powershell
+python tools/build_simulator_handbook_pdf.py
+```
+
+The versioned result is `output/pdf/HackoWatt_Simulator_Handbook.pdf`. Rebuild
+the dashboard afterwards to copy the PDF beside the generated simulator, then
+copy all three companion files to the demo or submission folder.
+
 Native controls, visible focus, larger text, higher contrast, explanatory copy,
 chart tables and responsive layouts support a wider range of users. These
 features are not a claim of formal accessibility certification.

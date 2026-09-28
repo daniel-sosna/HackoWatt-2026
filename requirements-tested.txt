@@ -4,3 +4,4 @@ pandas==3.0.6
 tzdata==2026.4
 reportlab==4.5.1
 Pillow==12.3.0
+lxml==6.1.1

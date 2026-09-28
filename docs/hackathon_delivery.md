@@ -12,7 +12,7 @@ Submit to the individual team folder sent by the organisers on Monday:
 - [ ] Final solution/source and reproducible launch instructions.
 - [ ] Approximately five-minute video showing the working solution and key features.
 - [ ] Short presentation or document: use `docs/submission_brief.md` as the draft.
-- [ ] Include the offline application and its separate methodology handbook.
+- [x] Include the offline application and its separate HTML/PDF methodology handbook.
 - [ ] Check the final video opens, has readable text/audio and fits approximately five minutes.
 - [ ] Test the copied application on the actual demo computer without network access.
 - [ ] Verify all files are in the team's own submission folder before the deadline.

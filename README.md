@@ -92,6 +92,10 @@ twin and rolling model predictive controller is in `docs/thermal_mpc_design.md`.
 The real-world data map, user settings, feature priorities, judging alignment,
 and five-minute demo path are in `docs/product_strategy.md`.
 
+`python tools/build_simulator_handbook_pdf.py` creates the presentation-ready,
+printable methodology handbook at `output/pdf/HackoWatt_Simulator_Handbook.pdf`.
+Run `renewable-dashboard` afterwards to copy the PDF beside the offline app.
+
 ## Sources and time handling
 
 Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.

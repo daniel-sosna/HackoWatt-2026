@@ -289,6 +289,9 @@ def build_renewable_dashboard(input_folder: Path, output_folder: Path,
         encoding='utf-8')
     (output_folder / 'simulator_methodology.html').write_text(
         (source / 'simulator_methodology.html').read_text(encoding='utf-8'), encoding='utf-8')
+    handbook = source.parents[1] / 'output' / 'pdf' / 'HackoWatt_Simulator_Handbook.pdf'
+    if handbook.exists():
+        (output_folder / handbook.name).write_bytes(handbook.read_bytes())
     return target
 
 
