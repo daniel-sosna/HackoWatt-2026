@@ -32,7 +32,7 @@ The project environment does not include CatBoost, LightGBM, XGBoost, or scikit-
 
 ## Running the models
 
-```powershell
+```bash
 python main.py forecast
 python main.py forecast-dashboard
 ```
