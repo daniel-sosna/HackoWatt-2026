@@ -12,10 +12,12 @@ main.py / python -m hackowatt
             -> dashboard          historical-data dashboard component
             -> forecast           load-forecast component
             -> forecast-dashboard forecast-dashboard component
+            -> renewable-dashboard renewable-investment component
 
 components -> domain implementation
     historical_data -> pipeline -> inputs, behaviour, devices, thermal
     load_forecasting -> forecasting
+    renewable_energy -> renewable -> household history and appliance events
 ```
 
 The generator remains a library function: `hackowatt.pipeline.generate(root,
@@ -32,6 +34,7 @@ python main.py generate
 python main.py dashboard
 python main.py forecast
 python main.py forecast-dashboard
+python main.py renewable-dashboard
 ```
 
 With editable installation, the same commands use `hackowatt` instead of

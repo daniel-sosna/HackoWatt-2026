@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Renewable Energy Simulator</title>
+<style>
+:root{--bg:#f4f7f2;--card:#fff;--ink:#15211b;--muted:#617069;--line:#dce5de;--green:#16774b;--green2:#2ca66f;--lime:#b9e268;--sun:#f6b84a;--blue:#3b82b6;--red:#bf5a53;--shadow:0 14px 38px rgba(25,59,42,.09)}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#edf6ee 0,#f8f5eb 48%,#eef5f7 100%);color:var(--ink);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}.shell{max-width:1440px;margin:auto;padding:28px}.hero{background:#123c2c;color:white;border-radius:24px;padding:26px 30px;position:relative;overflow:hidden;box-shadow:var(--shadow)}.hero:after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;right:-140px;top:-250px;background:radial-gradient(circle,#d5f17c 0,#3e9f69 38%,transparent 70%);opacity:.65}.eyebrow{text-transform:uppercase;letter-spacing:.14em;color:#bfe6cd;font-weight:700;font-size:11px}.hero h1{font-size:32px;line-height:1.08;margin:8px 0 10px;max-width:760px}.hero p{color:#d8e9df;max-width:760px;margin:0}.modebar{display:flex;gap:8px;position:absolute;right:28px;bottom:25px;z-index:2}.mode{border:1px solid #ffffff42;background:#ffffff12;color:white;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700}.mode.active{background:white;color:#17432f}.notice{margin:14px 0 18px;padding:12px 16px;border:1px solid #cfe1d3;background:#ffffffaa;border-radius:14px;color:#44534b}.grid{display:grid;grid-template-columns:1.55fr .95fr;gap:18px}.card{background:var(--card);border:1px solid #e1e8e2;border-radius:20px;padding:20px;box-shadow:0 7px 24px rgba(26,54,39,.055)}.section-title{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}.section-title h2{font-size:18px;margin:0}.section-title p{color:var(--muted);margin:4px 0 0;font-size:12px}.capacity{display:grid;grid-template-columns:1fr 150px;gap:18px;align-items:center}.capacity output{font-size:31px;font-weight:800;color:var(--green)}input[type=range]{width:100%;accent-color:var(--green)}.ticks{display:flex;justify-content:space-between;color:#78847e;font-size:11px;margin-top:4px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}.metric{padding:14px;border-radius:15px;background:#f5f8f5;border:1px solid #e4ebe5;min-height:106px}.metric .n{font-size:21px;font-weight:800;margin-top:12px;line-height:1.1}.metric .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.metric .s{font-size:11px;color:#6f7c75;margin-top:6px}.metric.primary{background:#eaf6ee;border-color:#c6e4d0}.metric.primary .n{color:var(--green)}.flow{margin-top:18px;display:grid;grid-template-columns:1fr 48px 1fr;align-items:center;gap:10px}.flow-col{display:grid;gap:8px}.flow-box{border-radius:13px;padding:11px 13px;background:#f5f7f5}.flow-box b{display:block;font-size:16px}.flow-box small{color:var(--muted)}.arrow{text-align:center;color:var(--green);font-size:27px}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}.payback{display:grid;grid-template-columns:1fr 1fr;gap:12px}.scenario{padding:16px;border-radius:16px;border:1px solid var(--line)}.scenario.smart{border-color:#acd7ba;background:#f0f9f2}.scenario h3{font-size:13px;margin:0 0 12px}.big{font-size:28px;font-weight:800;color:var(--green)}.scenario dl{display:grid;grid-template-columns:1fr auto;gap:6px;margin:12px 0 0;font-size:12px}.scenario dt{color:var(--muted)}.scenario dd{margin:0;font-weight:700}.chart-wrap{height:280px;position:relative}.chart-wrap canvas{width:100%;height:100%}.habits{display:grid;grid-template-columns:1fr 1fr;gap:12px}.habit{border:1px solid var(--line);padding:14px;border-radius:15px}.habit-head{display:flex;align-items:center;justify-content:space-between}.habit h3{margin:0;font-size:14px}.tag{padding:4px 7px;border-radius:8px;background:#e9f4ec;color:var(--green);font-size:10px;font-weight:700}.learned{font-size:11px;color:var(--muted);margin:8px 0 12px}.inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.field label{font-size:10px;color:var(--muted);display:block;margin-bottom:3px}.field input,.field select{width:100%;padding:8px;border:1px solid #dbe3dc;border-radius:9px;background:white;color:var(--ink)}.switch{display:flex;gap:8px;align-items:center;font-size:11px}.parameters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.param{background:#f7f9f7;border:1px solid #e3e9e4;border-radius:12px;padding:10px}.param label{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--muted);margin-bottom:5px}.param input{width:100%;border:0;background:transparent;font-weight:700;font-size:15px;color:var(--ink);outline:none}.tip{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#dfeae2;color:#496157;font-size:10px;cursor:help}.assumption{font-size:11px;color:var(--muted);padding-top:12px}.glossary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.term{padding:13px;background:#f6f8f6;border-radius:13px}.term b{display:block;margin-bottom:4px}.term span{color:var(--muted);font-size:11px}.footer{color:#66736c;font-size:11px;padding:18px 4px}.status{font-size:11px;color:var(--green);font-weight:700}.advanced{display:none}.poland .advanced{display:block}@media(max-width:1000px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.modebar{position:relative;right:auto;bottom:auto;margin-top:20px}.parameters{grid-template-columns:repeat(2,1fr)}.glossary{grid-template-columns:1fr 1fr}}@media(max-width:650px){.shell{padding:12px}.hero{padding:22px}.hero h1{font-size:25px}.capacity{grid-template-columns:1fr}.metrics,.payback,.habits,.parameters,.glossary{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+/* EMBED_DATA */
+<main class="shell" id="app">
+  <header class="hero">
+    <div class="eyebrow">HackoWatt · household digital twin</div>
+    <h1>Renewable Energy Simulator</h1>
+    <p>Size rooftop PV, see where every kilowatt-hour goes, and compare current habits with a schedule learned from the household's own history.</p>
+    <div class="modebar"><button class="mode active" data-mode="hackathon">Hackathon mode</button><button class="mode" data-mode="poland">Poland mode</button></div>
+  </header>
+  <div class="notice" id="modeNote"></div>
+
+  <section class="grid">
+    <div class="card">
+      <div class="section-title"><div><h2>Choose installation capacity</h2><p>kWp is the panels' rated peak DC power under standard test conditions.</p></div><span class="status" id="weatherPeriod"></span></div>
+      <div class="capacity"><div><input id="capacity" type="range" min="0" max="10" step="0.5" value="4"><div class="ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10 kWp</span></div></div><output id="capacityOut">4.0 kWp</output></div>
+      <div class="metrics">
+        <div class="metric primary"><div class="l">01 · Annual production</div><div class="n" id="production">—</div><div class="s">AC electricity after the stated yield assumption</div></div>
+        <div class="metric"><div class="l">02 · Demand covered</div><div class="n" id="coverage">—</div><div class="s">PV used at home ÷ total demand</div></div>
+        <div class="metric"><div class="l">03 · Grid purchase reduced</div><div class="n" id="reduction">—</div><div class="s">Compared with the same habits without PV</div></div>
+        <div class="metric"><div class="l">04 · Annual savings</div><div class="n" id="savings">—</div><div class="s" id="savingsNote">After annual operating cost</div></div>
+        <div class="metric"><div class="l">Self-consumption</div><div class="n" id="selfConsumption">—</div><div class="s">PV used at home ÷ PV produced</div></div>
+      </div>
+      <div class="flow">
+        <div class="flow-col"><div class="flow-box"><small>Household demand</small><b id="flowDemand">—</b></div><div class="flow-box"><small>PV production</small><b id="flowPv">—</b></div></div>
+        <div class="arrow">→</div>
+        <div class="flow-col"><div class="flow-box"><small>Used directly in the home</small><b id="flowSelf">—</b></div><div class="flow-box"><small>Grid import · grid export</small><b id="flowGrid">—</b></div></div>
+      </div>
+      <div class="legend"><span><i class="dot" style="background:var(--green)"></i>Local solar use</span><span><i class="dot" style="background:var(--blue)"></i>Grid import</span><span><i class="dot" style="background:var(--sun)"></i>Grid export</span></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title"><div><h2>Indicative payback</h2><p>Same PV system, two household behaviour scenarios.</p></div></div>
+      <div class="payback">
+        <div class="scenario"><h3>A · Current habits</h3><div class="big" id="paybackA">—</div><dl><dt>Annual saving</dt><dd id="savingA">—</dd><dt>Initial cost</dt><dd id="capexA">—</dd></dl></div>
+        <div class="scenario smart"><h3>B · Smart activity shifting</h3><div class="big" id="paybackB">—</div><dl><dt>Annual saving</dt><dd id="savingB">—</dd><dt>Shifted cycles</dt><dd id="shiftedCount">—</dd></dl></div>
+      </div>
+      <p class="assumption">Scenario B compares the complete PV + scheduling package with current habits and no PV. No controller or software hardware cost is included.</p>
+      <div class="advanced"><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><div class="section-title"><div><h2>Long-term value</h2><p>Discounted Poland scenario, including degradation and replacement.</p></div></div><div class="payback"><div class="scenario"><h3>NPV · current habits</h3><div class="big" id="npvA">—</div><small id="discountedA"></small></div><div class="scenario smart"><h3>NPV · smart shifting</h3><div class="big" id="npvB">—</div><small id="discountedB"></small></div></div></div>
+    </div>
+  </section>
+
+  <section class="grid" style="margin-top:18px">
+    <div class="card">
+      <div class="section-title"><div><h2>Capacity comparison</h2><p>Payback for several installation sizes. Lower is better.</p></div><span class="status">0 · 2 · 4 · 6 · 8 · 10 kWp</span></div>
+      <div class="chart-wrap"><canvas id="capacityChart"></canvas></div>
+      <div class="legend"><span><i class="dot" style="background:var(--blue)"></i>A · current habits</span><span><i class="dot" style="background:var(--green2)"></i>B · smart shifting</span></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><div><h2>Learned habit defaults</h2><p>Observed timing supplies a starting point; the family remains in control.</p></div></div>
+      <div class="habits" id="habitCards"></div>
+      <p class="assumption">The optimiser moves complete appliance cycles. It preserves their energy and prevents two cycles of the same physical device from overlapping. Heating and hot water are not shifted because they require separate comfort and thermal-state constraints.</p>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:18px">
+    <div class="section-title"><div><h2>Assumptions you can change</h2><p>Defaults are visible so a jury member can reproduce the result.</p></div><button id="reset" class="mode" style="color:var(--green);border-color:#b8d6c2;background:#eef8f1">Reset mode</button></div>
+    <div class="parameters">
+      <div class="param"><label>Specific yield <span class="tip" title="Annual AC electricity produced by each installed kWp.">?</span></label><input id="specificYield" type="number" min="500" max="1400" step="10"><small>kWh/kWp/year</small></div>
+      <div class="param"><label>Installation cost <span class="tip" title="Up-front capital expenditure per installed kWp.">?</span></label><input id="capexPerKwp" type="number" min="0" step="10"><small id="capexUnit"></small></div>
+      <div class="param"><label>Export value <span class="tip" title="Value credited for one kWh sent to the public grid.">?</span></label><input id="exportPrice" type="number" min="0" step="0.01"><small id="exportUnit"></small></div>
+      <div class="param"><label>Annual OPEX <span class="tip" title="Recurring operation and maintenance cost as a share of the initial installation cost.">?</span></label><input id="opexPct" type="number" min="0" max="10" step="0.1"><small>% of CAPEX/year</small></div>
+      <div class="param"><label>Night purchase price · 00–06</label><input id="nightPrice" type="number" min="0" step="0.01"><small class="priceUnit"></small></div>
+      <div class="param"><label>Day purchase price · 06–17</label><input id="dayPrice" type="number" min="0" step="0.01"><small class="priceUnit"></small></div>
+      <div class="param"><label>Peak purchase price · 17–22</label><input id="peakPrice" type="number" min="0" step="0.01"><small class="priceUnit"></small></div>
+      <div class="param"><label>Late purchase price · 22–24</label><input id="latePrice" type="number" min="0" step="0.01"><small class="priceUnit"></small></div>
+      <div class="param advanced"><label>PV degradation <span class="tip" title="Expected yearly percentage loss of PV output.">?</span></label><input id="degradationPct" type="number" min="0" max="3" step="0.1"><small>%/year</small></div>
+      <div class="param advanced"><label>Discount rate <span class="tip" title="Rate used to convert future cash flows into today's value.">?</span></label><input id="discountPct" type="number" min="0" max="20" step="0.5"><small>% real/year</small></div>
+      <div class="param advanced"><label>Tariff growth</label><input id="tariffGrowthPct" type="number" min="-5" max="15" step="0.5"><small>%/year</small></div>
+      <div class="param advanced"><label>Analysis horizon</label><input id="horizonYears" type="number" min="1" max="40" step="1"><small>years</small></div>
+      <div class="param advanced"><label>Subsidy</label><input id="subsidy" type="number" min="0" step="100"><small id="subsidyUnit"></small></div>
+      <div class="param advanced"><label>Tax benefit rate <span class="tip" title="Effective reduction applied only to eligible spending paid by the household.">?</span></label><input id="taxRatePct" type="number" min="0" max="50" step="1"><small>%</small></div>
+      <div class="param advanced"><label>Inverter replacement year</label><input id="inverterYear" type="number" min="1" max="40" step="1"><small>year</small></div>
+      <div class="param advanced"><label>Replacement cost</label><input id="inverterCostPct" type="number" min="0" max="100" step="1"><small>% of initial CAPEX</small></div>
+    </div>
+    <p class="assumption" id="assumptionText"></p>
+  </section>
+
+  <section class="card" style="margin-top:18px">
+    <div class="section-title"><div><h2>Plain-language glossary</h2><p>Every technical term used by the simulator.</p></div></div>
+    <div class="glossary">
+      <div class="term"><b>PV · photovoltaics</b><span>Solar panels that convert sunlight directly into electricity.</span></div>
+      <div class="term"><b>kWp · kilowatt-peak</b><span>The rated DC power of the panels under standard laboratory conditions. It is power, not annual energy.</span></div>
+      <div class="term"><b>kWh · kilowatt-hour</b><span>A unit of energy. A 1 kW appliance running for one hour uses 1 kWh.</span></div>
+      <div class="term"><b>Self-consumption</b><span>The share of PV production used immediately inside the home instead of exported.</span></div>
+      <div class="term"><b>Demand coverage</b><span>The share of household electricity demand supplied directly by PV at the same time.</span></div>
+      <div class="term"><b>Grid import / export</b><span>Electricity bought from the grid / surplus electricity sent to the grid.</span></div>
+      <div class="term"><b>CAPEX</b><span>Capital expenditure: the up-front purchase and installation cost.</span></div>
+      <div class="term"><b>OPEX</b><span>Operating expenditure: recurring maintenance and operating cost.</span></div>
+      <div class="term"><b>Payback period</b><span>Initial net cost divided by annual savings. It does not by itself measure lifetime value.</span></div>
+      <div class="term"><b>NPV · net present value</b><span>All future savings and costs discounted into today's money, less the initial investment.</span></div>
+      <div class="term"><b>COP · coefficient of performance</b><span>Heat delivered divided by electricity used. Direct electric heating is about 1; a heat pump can be above 1 and changes with conditions. This house currently uses direct electric heating, so no heat-pump COP is applied.</span></div>
+      <div class="term"><b>Net-billing</b><span>A value-based settlement for exported energy. In Poland the credit depends on market settlement rules rather than the fixed Hackathon export rate.</span></div>
+    </div>
+  </section>
+  <footer class="footer">Source data: <span id="sources"></span>. Results are scenarios based on a synthetic, uncalibrated household and stated assumptions, not a financial offer or performance guarantee.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id), app=$('app');
+const defaults={hackathon:{specificYield:1000,degradationPct:0,discountPct:0,tariffGrowthPct:0,horizonYears:25,subsidy:0,taxRatePct:0,inverterYear:15,inverterCostPct:0},poland:{specificYield:1000,degradationPct:.5,discountPct:5,tariffGrowthPct:2,horizonYears:25,subsidy:0,taxRatePct:0,inverterYear:15,inverterCostPct:15}};
+let mode='hackathon', currentResults=null;
+const ids=['specificYield','capexPerKwp','exportPrice','opexPct','nightPrice','dayPrice','peakPrice','latePrice','degradationPct','discountPct','tariffGrowthPct','horizonYears','subsidy','taxRatePct','inverterYear','inverterCostPct'];
+const n=id=>Number($(id).value||0), sum=a=>a.reduce((x,y)=>x+y,0), clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function money(v){const c=D.modes[mode].currency;return new Intl.NumberFormat('en',{style:'currency',currency:c,maximumFractionDigits:0}).format(v)}
+function energy(v){return new Intl.NumberFormat('en',{maximumFractionDigits:0}).format(v)+' kWh'}
+function pct(v){return Number.isFinite(v)?(100*v).toFixed(1)+'%':'—'}
+function years(v){return Number.isFinite(v)&&v>0?v.toFixed(1)+' years':'Not reached'}
+function priceAt(i,scale=1){const h=D.localHour[i];return scale*(h<6?n('nightPrice'):h<17?n('dayPrice'):h<22?n('peakPrice'):n('latePrice'))}
+function pvArray(capacity,yearScale=1){const scale=capacity*n('specificYield')/1000*yearScale;return D.pvKwhPerKwpAt1000Yield.map(x=>x*scale)}
+function balance(load,pv,buyScale=1,exportScale=1){let self=0,imp=0,exp=0,cost=0;const ex=n('exportPrice')*exportScale;for(let i=0;i<load.length;i++){const s=Math.min(load[i],pv[i]),im=load[i]-s,ep=pv[i]-s;self+=s;imp+=im;exp+=ep;cost+=im*priceAt(i,buyScale)-ep*ex}return{load:sum(load),pv:sum(pv),self,imp,exp,cost}}
+function configs(){const out={};document.querySelectorAll('.habit').forEach(el=>{out[el.dataset.device]={enabled:el.querySelector('.enabled').checked,earliest:Number(el.querySelector('.earliest').value),latest:Number(el.querySelector('.latest').value),maxShift:Number(el.querySelector('.maxshift').value)}});return out}
+function schedule(capacity){const load=D.baseLoadKwh.slice(), pv=pvArray(capacity), cfg=configs(), occupied={washing_machine:new Uint8Array(load.length),dishwasher:new Uint8Array(load.length)};let shifted=0;
+  for(const ev of D.flexibleEvents){const c=cfg[ev.device], candidates=[];if(c.enabled){for(let d=-c.maxShift;d<=c.maxShift;d++){const s=ev.startIndex+d;if(s<0||s+ev.profile.length>load.length||D.localDate[s]!==D.localDate[ev.startIndex])continue;const h=D.localHour[s],finish=h+ev.durationMinutes/60;if(h<c.earliest||finish>c.latest)continue;candidates.push(s)}}else candidates.push(ev.startIndex);
+    if(!candidates.includes(ev.startIndex)&&(!c.enabled||candidates.length===0))candidates.push(ev.startIndex);let best=null,bestCost=Infinity;
+    for(const s of candidates){let conflict=false,delta=0;for(let j=0;j<ev.profile.length;j++){if(occupied[ev.device][s+j]){conflict=true;break}const before=load[s+j],after=before+ev.profile[j],p=pv[s+j],q=priceAt(s+j),x=n('exportPrice');delta+=(Math.max(after-p,0)*q-Math.max(p-after,0)*x)-(Math.max(before-p,0)*q-Math.max(p-before,0)*x)}if(!conflict&&delta<bestCost){bestCost=delta;best=s}}
+    if(best===null)best=ev.startIndex;for(let j=0;j<ev.profile.length&&best+j<load.length;j++){load[best+j]+=ev.profile[j];occupied[ev.device][best+j]=1}if(best!==ev.startIndex)shifted++}
+  return{load,shifted}}
+function annual(flow){const y=D.yearCount;return Object.fromEntries(Object.entries(flow).map(([k,v])=>[k,v/y]))}
+function metrics(capacity){const pv=pvArray(capacity),current=annual(balance(D.loadKwh,pv)),base=annual(balance(D.loadKwh,pvArray(0))),smartLoad=schedule(capacity),smart=annual(balance(smartLoad.load,pv)),capex=capacity*n('capexPerKwp'),opex=capex*n('opexPct')/100,netInitial=Math.max(0,capex-n('subsidy')-Math.max(0,capex-n('subsidy'))*n('taxRatePct')/100),saveA=base.cost-current.cost-opex,saveB=base.cost-smart.cost-opex;return{capacity,current,smart,base,capex,opex,netInitial,saveA,saveB,payA:saveA>0?netInitial/saveA:Infinity,payB:saveB>0?netInitial/saveB:Infinity,shifted:smartLoad.shifted,smartLoad:smartLoad.load}}
+function longTerm(m,smart){let npv=-m.netInitial,cumulative=-m.netInitial,pay=Infinity;const horizon=n('horizonYears'),r=n('discountPct')/100,g=n('tariffGrowthPct')/100,d=n('degradationPct')/100;for(let y=1;y<=horizon;y++){const pv=pvArray(m.capacity,Math.pow(1-d,y-1)),buy=Math.pow(1+g,y-1),exp=Math.pow(1+g,y-1),baseline=annual(balance(D.loadKwh,pvArray(0),buy,exp)),chosen=annual(balance(smart?m.smartLoad:D.loadKwh,pv,buy,exp));let cf=baseline.cost-chosen.cost-m.opex*Math.pow(1+g,y-1);if(y===Math.round(n('inverterYear')))cf-=m.capex*n('inverterCostPct')/100;const disc=cf/Math.pow(1+r,y);npv+=disc;cumulative+=disc;if(!Number.isFinite(pay)&&cumulative>=0)pay=y}return{npv,pay}}
+function render(){const cap=n('capacity'),m=metrics(cap);currentResults=m;$('capacityOut').value=cap.toFixed(1)+' kWp';$('production').textContent=energy(m.current.pv);$('coverage').textContent=pct(m.current.self/m.current.load);$('reduction').textContent=energy(m.base.imp-m.current.imp);$('savings').textContent=money(m.saveA);$('selfConsumption').textContent=pct(m.current.self/m.current.pv);$('flowDemand').textContent=energy(m.current.load);$('flowPv').textContent=energy(m.current.pv);$('flowSelf').textContent=energy(m.current.self);$('flowGrid').textContent=energy(m.current.imp)+' · '+energy(m.current.exp);$('paybackA').textContent=years(m.payA);$('paybackB').textContent=years(m.payB);$('savingA').textContent=money(m.saveA);$('savingB').textContent=money(m.saveB);$('capexA').textContent=money(m.netInitial);$('shiftedCount').textContent=m.shifted+' / '+D.flexibleEvents.length;
+  if(mode==='poland'){const a=longTerm(m,false),b=longTerm(m,true);$('npvA').textContent=money(a.npv);$('npvB').textContent=money(b.npv);$('discountedA').textContent='Discounted payback: '+years(a.pay);$('discountedB').textContent='Discounted payback: '+years(b.pay)}drawChart()}
+function drawChart(){const c=$('capacityChart'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);const pad={l:44,r:16,t:20,b:34},rows=D.capacityOptions.filter(v=>v>0).map(v=>metrics(v)),max=Math.min(30,Math.ceil(Math.max(...rows.flatMap(r=>[Number.isFinite(r.payA)?r.payA:30,Number.isFinite(r.payB)?r.payB:30]))/5)*5);x.strokeStyle='#dce5de';x.fillStyle='#718079';x.font='11px system-ui';for(let y=0;y<=max;y+=5){const py=pad.t+(h-pad.t-pad.b)*(1-y/max);x.beginPath();x.moveTo(pad.l,py);x.lineTo(w-pad.r,py);x.stroke();x.fillText(y+'y',8,py+4)}const px=v=>pad.l+(w-pad.l-pad.r)*(v/10),py=v=>pad.t+(h-pad.t-pad.b)*(1-clamp(v,0,max)/max);for(const v of D.capacityOptions){x.fillText(v,px(v)-3,h-10)}function line(key,color){x.strokeStyle=color;x.lineWidth=3;x.beginPath();rows.forEach((r,i)=>{const X=px(r.capacity),Y=py(r[key]);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();rows.forEach(r=>{x.fillStyle=color;x.beginPath();x.arc(px(r.capacity),py(r[key]),4,0,Math.PI*2);x.fill()})}line('payA','#3b82b6');line('payB','#2ca66f')}
+function makeHabits(){const names={washing_machine:'Washing machine',dishwasher:'Dishwasher'},root=$('habitCards');root.innerHTML='';for(const [device,v] of Object.entries(D.learnedConstraints)){const el=document.createElement('div');el.className='habit';el.dataset.device=device;el.innerHTML=`<div class="habit-head"><h3>${names[device]}</h3><label class="switch"><input class="enabled" type="checkbox" checked> Optimise</label></div><div class="learned"><span class="tag">Learned from ${v.events} cycles</span><br>Median start ${clock(v.observed_start_median)}; 80% observed between ${clock(v.observed_start_p10)} and ${clock(v.observed_start_p90)}.</div><div class="inputs"><div class="field"><label>Earliest start</label><input class="earliest" type="number" min="0" max="23" value="${v.earliest_start_hour}"></div><div class="field"><label>Latest finish</label><input class="latest" type="number" min="1" max="24" value="${v.latest_finish_hour}"></div><div class="field"><label>Max shift</label><input class="maxshift" type="number" min="0" max="12" value="${v.maximum_shift_hours}"></div></div>`;root.appendChild(el)}root.querySelectorAll('input').forEach(i=>i.addEventListener('change',render))}
+function clock(v){let h=Math.floor(v),m=Math.round((v-h)*60);if(m===60){h++;m=0}return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
+function applyMode(key){mode=key;app.classList.toggle('poland',key==='poland');document.querySelectorAll('.modebar .mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===key));const m=D.modes[key],d=defaults[key];$('capexPerKwp').value=m.capex_per_kwp;$('exportPrice').value=m.export_price_per_kwh;$('opexPct').value=m.annual_opex_fraction*100;$('nightPrice').value=m.night_price;$('dayPrice').value=m.day_price;$('peakPrice').value=m.peak_price;$('latePrice').value=m.late_price;for(const [k,v] of Object.entries(d))$(k).value=v;$('capexUnit').textContent=m.currency+'/kWp';$('exportUnit').textContent=m.currency+'/kWh';document.querySelectorAll('.priceUnit').forEach(e=>e.textContent=m.currency+'/kWh');$('subsidyUnit').textContent=m.currency;$('modeNote').innerHTML=key==='hackathon'?'<b>Hackathon mode:</b> organiser tariffs, €0.08/kWh export, €1,300/kWp CAPEX and 1% annual OPEX.':'<b>Poland mode:</b> editable planning inputs with net-billing, degradation, discounting, subsidy, tax benefit and inverter replacement. Defaults are illustrative; use the household contract and current programme rules.';$('assumptionText').textContent=key==='hackathon'?'The tariff and investment defaults come from the shared HackoWatt attachment. The 1,000 kWh/kWp/year yield is an explicit, editable modelling assumption.':'The Poland defaults are editable scenario inputs, not a tariff quote. Net-billing credits and the retail bill vary over time and by contract; subsidy and tax fields default to zero to avoid claiming eligibility.';render()}
+document.querySelectorAll('.modebar .mode').forEach(b=>b.onclick=()=>applyMode(b.dataset.mode));$('capacity').oninput=render;ids.forEach(id=>$(id).addEventListener('change',render));$('reset').onclick=()=>applyMode(mode);window.addEventListener('resize',()=>currentResults&&drawChart());makeHabits();$('weatherPeriod').textContent=D.years.join('–')+' historical shape';$('sources').textContent=Object.values(D.sources).join(' · ');applyMode('hackathon');
+</script>
+</body>
+</html>

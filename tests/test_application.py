@@ -17,7 +17,8 @@ class ApplicationTests(unittest.TestCase):
 
     def test_main_program_registers_all_components(self):
         parser = build_parser()
-        expected = {'generate', 'dashboard', 'forecast', 'forecast-dashboard'}
+        expected = {'generate', 'dashboard', 'forecast', 'forecast-dashboard',
+                    'renewable-dashboard'}
         self.assertEqual({component.name for component in built_in_registry().components}, expected)
         for command in expected:
             args = parser.parse_args([command])

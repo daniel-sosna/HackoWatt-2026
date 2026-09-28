@@ -1,6 +1,6 @@
 # HackoWatt Family
 
-A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The scope excludes PV, batteries, grid export, and other electricity generation.
+A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The historical household generator contains no PV or battery; the separate Renewable Energy Simulator evaluates rooftop PV against that unchanged demand profile.
 
 ## Quick start in PyCharm
 
@@ -14,6 +14,7 @@ python main.py generate
 python main.py dashboard
 python main.py forecast
 python main.py forecast-dashboard
+python main.py renewable-dashboard
 python -m unittest discover -s tests -v
 ```
 
@@ -66,6 +67,17 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 `main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` creates the offline comparison dashboard at `results/forecast/forecast_dashboard.html`. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
 
+## Renewable Energy Simulator
+
+`python main.py renewable-dashboard` builds the offline interactive simulator at
+`results/renewable/renewable_energy_simulator.html`. It compares multiple PV
+capacities, reports all five investment outputs required by the challenge, and
+shows payback for current habits and learned activity shifting. It includes
+separate Hackathon and editable Poland economic modes. Run `generate` first so
+the simulator can learn washing-machine and dishwasher defaults from
+`appliance_events.csv`. The formulas, terminology and limitations are documented
+in `docs/renewable_energy_simulator.md`.
+
 ## Sources and time handling
 
 Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.
@@ -82,6 +94,6 @@ The configuration supplies the random seed. Separate random streams are used for
 
 ## Code structure
 
-`main.py` is the canonical entry point. It invokes a registered component in `src/hackowatt/components/`: `generate`, `dashboard`, `forecast`, or `forecast-dashboard`. The generator remains reusable as the library function in `pipeline.py`; future components can call it or read its `hourly.csv` without modifying simulation code. `inputs.py` validates sources and parameters; `behaviour.py` creates schedules; `devices.py` maps activities to appliances; `thermal.py` solves the house and tank balances. Visualisation is fully local, rendered on Canvas, and has no CDN or telemetry. See `docs/architecture.md` for the complete diagram and a component example.
+`main.py` is the canonical entry point. It invokes a registered component in `src/hackowatt/components/`: `generate`, `dashboard`, `forecast`, `forecast-dashboard`, or `renewable-dashboard`. The generator remains reusable as the library function in `pipeline.py`; future components can call it or read its `hourly.csv` without modifying simulation code. `inputs.py` validates sources and parameters; `behaviour.py` creates schedules; `devices.py` maps activities to appliances; `thermal.py` solves the house and tank balances. Visualisation is fully local, rendered on Canvas, and has no CDN or telemetry. See `docs/architecture.md` for the complete diagram and a component example.
 
 This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.
