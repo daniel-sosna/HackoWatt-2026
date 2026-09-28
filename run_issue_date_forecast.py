@@ -17,8 +17,8 @@ from hackowatt.issue_date_forecast import (  # noqa: E402
 
 
 # ===== EDIT THESE VALUES BEFORE RUNNING =====
-FORECAST_START_LOCAL = "2025-09-10 00:00:00"
-HORIZON_HOURS = 24  # Allowed values: 24, 72, or 168.
+FORECAST_START_LOCAL = "2025-09-01 00:00:00"
+HORIZON_HOURS = 72  # Allowed values: 24, 72, or 168.
 INPUT_HOURLY_CSV = PROJECT_ROOT / "results" / "default" / "hourly.csv"
 OUTPUT_DIRECTORY = PROJECT_ROOT / "results" / "issue_date_forecast"
 # ============================================
