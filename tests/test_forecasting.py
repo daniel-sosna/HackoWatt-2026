@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 import numpy as np
@@ -22,7 +23,18 @@ from hackowatt.forecasting import (
 
 class ForecastingTests(unittest.TestCase):
     def test_feature_frame_excludes_target_and_future_state(self):
-        df = load_hourly(ROOT / 'results/default/hourly.csv').iloc[:200]
+        timestamps = pd.date_range('2024-01-01', periods=200, freq='h', tz='UTC')
+        frame = pd.DataFrame({
+            'timestamp_utc': timestamps,
+            'marek_shift': ['off'] * len(timestamps),
+            'temperature_2m': 5.0,
+            'total_kwh': 1.0,
+            'indoor_temperature': 20.0,
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'hourly.csv'
+            frame.to_csv(path, index=False)
+            df = load_hourly(path)
         features = exogenous_frame(df)
         self.assertEqual(len(features), len(df))
         self.assertFalse(set(features.columns) & FORBIDDEN_DIRECT_COLUMNS)
