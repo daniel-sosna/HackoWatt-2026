@@ -14,6 +14,8 @@ python -m pip install -r requirements.txt
 
 Keep the environment in `.venv/`; it is local-only and must not be committed. When shell activation is unavailable, run commands with `.venv/bin/python` explicitly.
 
+Use `requirements.txt` for normal development and runtime installs. Use `requirements-tested.txt` when reproducing the exact dependency versions used by the retained validation checks.
+
 Use the application entry point for routine work:
 
 ```bash
