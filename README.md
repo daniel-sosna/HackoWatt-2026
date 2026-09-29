@@ -1,6 +1,6 @@
 # HackoWatt Family
 
-A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The historical household generator contains no PV or battery; the separate Renewable Energy Simulator evaluates rooftop PV against that unchanged demand profile.
+A local Python project that simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The historical household generator contains no PV or battery; the separate Renewable Energy Simulator evaluates rooftop PV against that unchanged demand profile.
 
 ## Quick start
 
@@ -23,9 +23,17 @@ python main.py forecast --forecast-start-local "2025-09-10 00:00:00"
 python -m unittest discover -s tests -v
 ```
 
-A generated example is already available in `results/default`. It contains 17,544 physical hours for local calendar years 2024--2025, including 29 February.
-
 For PyCharm users who prefer a configurable file over command-line options, edit and run `tools/run_issue_date_forecast.py`.
+
+### Deploy on Render
+
+The repository includes `render.yaml` for a Render Web Service. It installs
+the dependencies and runs `python main.py generate` during the build, so a
+blank `results` directory is sufficient. The generated `results/default`
+files are then served by the dashboard.
+
+The service is publicly reachable at the Render URL after deployment. The
+current dashboard has no login or access control, so it's publicly accessible.
 
 ## House parameters
 

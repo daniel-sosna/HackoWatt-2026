@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: hackowatt-family
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python main.py generate
+    startCommand: python main.py dashboard --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
