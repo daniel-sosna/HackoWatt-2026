@@ -34,11 +34,24 @@ The project environment does not include CatBoost, LightGBM, XGBoost, or scikit-
 
 ```bash
 python main.py forecast
-python main.py forecast-dashboard
+python main.py dashboard
 ```
 
-`results/forecast/forecast_predictions.csv` follows the required contract: `timestamp_utc`, `horizon_h`, `load_hat`, `model_id`, plus component forecasts for the modular model. `forecast_metrics.csv` contains the comparison. `forecast_model_spec.json` records the split, features, explicitly excluded leakage columns, and model state. `forecast_dashboard.html` shows a selected forecast origin and horizon.
+`results/forecast/forecast_predictions.csv` follows the required contract: `timestamp_utc`, `horizon_h`, `load_hat`, `model_id`, plus component forecasts for the modular model. `forecast_metrics.csv` contains the comparison. `forecast_model_spec.json` records the split, features, explicitly excluded leakage columns, and model state. The unified dashboard's **Forecast quality** page shows a selected forecast origin and horizon.
 
 ## Moving to a real home
 
 For an honest day-ahead run, provide only the published weather forecast, known calendar, planned shifts/WFH, and past real measurements. Do not provide future actual indoor temperature, future occupancy, or actual future appliance demand. Once a real meter is available, retrain chronologically and store each prediction with its observation, issue time, and model version.
+
+## Renewable simulator presentation and import contract
+
+The renewable view labels the saved run as a historical backtest. Its empirical
+10th–90th residual range uses only earlier origins with target observations
+strictly before the displayed issue time. The range is uncalibrated; the model
+is selected retrospectively by validation WAPE, not on an independent holdout.
+Direct-total predictions and modular component estimates are displayed as
+separate estimates and must not be described as an exact decomposition.
+
+Future issued-weather or external-forecast imports belong behind the weather or
+forecasting provider interfaces. They must preserve the issue timestamp and use
+only values known at that time; no import adapter is included in this MVP.

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import argparse
 
-from .base import ProjectContext
-from ..forecasting import run_forecast_experiment
+from ..config import ProjectPaths
+from ..services import run_forecast
 
 
 class LoadForecastComponent:
@@ -19,10 +19,11 @@ class LoadForecastComponent:
         parser.add_argument('--origin-stride-hours', type=int, default=168)
         parser.set_defaults(component=self)
 
-    def run(self, args: argparse.Namespace, context: ProjectContext) -> int:
-        _, metrics, spec = run_forecast_experiment(
-            context.path(args.input), context.path(args.output), args.test_days, args.origin_stride_hours)
+    def run(self, args: argparse.Namespace, paths: ProjectPaths) -> int:
+        artifacts = run_forecast(
+            paths.resolve(args.input), paths.resolve(args.output), args.test_days, args.origin_stride_hours)
+        metrics, spec = artifacts.metrics, artifacts.specification
         print(metrics[['model_id', 'bucket', 'mae_kwh', 'rmse_kwh', 'wape_pct', 'total_error_pct',
                        'peak_hour_mae_kwh', 'peak_timing_mae_h']].round(3).to_string(index=False))
-        print(f"Saved {spec['origins']} rolling origins to {context.path(args.output)}")
+        print(f"Saved {spec['origins']} rolling origins to {paths.resolve(args.output)}")
         return 0

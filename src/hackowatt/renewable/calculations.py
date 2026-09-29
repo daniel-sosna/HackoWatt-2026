@@ -14,7 +14,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from .devices import cycle_profile
+from ..simulation.devices import cycle_profile
 
 
 DEVICE_CATEGORY = {
@@ -143,6 +143,35 @@ def energy_balance(load_kwh, pv_kwh, purchase_price, export_price):
     }
 
 
+def evaluate_pv(hourly: pd.DataFrame, capacity_kwp: float,
+                specific_yield_kwh_per_kwp: float, mode: EconomicMode) -> dict:
+    """Evaluate PV energy flow and first-year economics for one configuration."""
+    if not math.isfinite(capacity_kwp) or capacity_kwp < 0:
+        raise ValueError("capacity_kwp must be finite and nonnegative")
+    profile = normalized_pv_profile(hourly, specific_yield_kwh_per_kwp) * capacity_kwp
+    index = pd.DatetimeIndex(pd.to_datetime(hourly.timestamp_utc, utc=True))
+    balance = energy_balance(hourly.total_kwh.to_numpy(float), profile, local_tariff(index, mode),
+                             mode.export_price_per_kwh)
+    no_pv_cost = float((hourly.total_kwh.to_numpy(float) * local_tariff(index, mode)).sum())
+    grid_cost = float(balance["grid_cost"].sum())
+    years = len(set(index.tz_convert("Europe/Warsaw").year))
+    annual_savings = (no_pv_cost - grid_cost) / years
+    capex = capacity_kwp * mode.capex_per_kwp
+    return {
+        "capacity_kwp": capacity_kwp,
+        "pv_kwh": float(profile.sum()),
+        "self_used_kwh": float(balance["self_used_kwh"].sum()),
+        "grid_import_kwh": float(balance["grid_import_kwh"].sum()),
+        "grid_export_kwh": float(balance["grid_export_kwh"].sum()),
+        "self_consumption_pct": float(100 * balance["self_used_kwh"].sum() / profile.sum()) if profile.sum() else 0.0,
+        "demand_coverage_pct": float(100 * balance["self_used_kwh"].sum() / hourly.total_kwh.sum()),
+        "capex": capex,
+        "annual_savings": annual_savings,
+        "simple_payback_years": capex / annual_savings if annual_savings > 0 else None,
+        "currency": mode.currency,
+    }
+
+
 def learn_habit_constraints(events: pd.DataFrame) -> dict[str, dict]:
     """Learn conservative default windows from historical flexible-device runs.
 
@@ -179,8 +208,8 @@ def learn_habit_constraints(events: pd.DataFrame) -> dict[str, dict]:
             'automation': settings['automation'],
         }
     # Heating and tank operation have no appliance-event records. They are
-    # exposed as opt-in proxy controls until a stateful controller supplies
-    # comfort-safe flexibility windows.
+    # marked model-required and excluded from appliance shifting. The separate
+    # stateful controller owns their temperature and service constraints.
     result['space_heating'] = {
         'events': 0, 'energy_kwh': 0.0, 'observed_start_p10': 0.0,
         'observed_start_median': 12.0, 'observed_start_p90': 23.0,
@@ -236,29 +265,13 @@ def prepare_flexible_events(hourly: pd.DataFrame, events: pd.DataFrame) -> tuple
             'category': DEVICE_CATEGORY[row.device],
             'resource': row.device,
             'startIndex': int(start_index),
+            'startMinute': int(start.minute),
             'durationMinutes': int(row.duration_minutes),
             'energyKwh': round(float(row.energy_kwh), 6),
             'profile': [round(value, 7) for value in profile],
             'proxy': False,
         })
-    # Conservative proxy flexibility. These shares are excluded by default and
-    # clearly labelled in the UI because a future thermal/controller model must
-    # validate tank temperature and indoor comfort before dispatch.
-    for category, column, share in [
-            ('space_heating', 'space_heating_kwh', .15),
-            ('water_heater', 'water_heater_kwh', .50)]:
-        if column not in hourly:
-            continue
-        values = pd.to_numeric(hourly[column], errors='raise').to_numpy(float)
-        for start_index in np.flatnonzero(values > .01):
-            energy = float(values[start_index] * share)
-            reconstructed[start_index] += energy
-            encoded.append({
-                'category': category, 'resource': category,
-                'startIndex': int(start_index), 'durationMinutes': 60,
-                'energyKwh': round(energy, 6), 'profile': [round(energy, 7)],
-                'proxy': True,
-            })
+    # Thermal energy remains in the fixed load; it is never shifted as a cycle.
     load = pd.to_numeric(hourly.total_kwh, errors='raise').to_numpy(float)
     base = load - reconstructed
     if base.min() < -2e-5:
@@ -312,6 +325,9 @@ def build_dashboard_data(hourly: pd.DataFrame, events: pd.DataFrame) -> dict:
         'localHour': local.hour.astype(int).tolist(),
         'localDate': local.strftime('%Y-%m-%d').tolist(),
         'localDayType': day_type.tolist(),
+        'outdoorC': np.round(hourly.temperature_2m.to_numpy(float), 2).tolist(),
+        'categoryLoad': {key: np.round(hourly[[c for c in cols if c in hourly]].sum(axis=1).to_numpy(float), 5).tolist()
+                         for key, cols in CATEGORY_COLUMNS.items()},
         'occupancyPeople': np.round(occupancy, 3).tolist(),
         'occupancyProfiles': occupancy_profiles,
         'loadKwh': np.round(pd.to_numeric(hourly.total_kwh).to_numpy(float), 6).tolist(),

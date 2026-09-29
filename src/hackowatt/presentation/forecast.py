@@ -1,10 +1,7 @@
-"""Create an offline visual comparison of the 24-hour, 3-day and 7-day forecasts."""
-import argparse
+"""Interactive forecast-results renderer, isolated from Streamlit and file I/O."""
 import json
-from pathlib import Path
-import pandas as pd
 
-ROOT=Path(__file__).resolve().parent
+import pandas as pd
 
 HTML='''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forecast architecture comparison</title>
 <style>:root{font-family:Segoe UI,Arial,sans-serif;color:#243646;background:#f3f6f8}body{max-width:1300px;margin:24px auto;padding:0 24px}h1{margin-bottom:4px}.muted{color:#647789;line-height:1.45}.controls,section{background:#fff;border:1px solid #dbe3e8;border-radius:12px;padding:18px;margin:18px 0}.controls{display:flex;gap:18px;align-items:end;flex-wrap:wrap}.controls label{display:grid;gap:5px;font-size:13px}select{padding:8px;border:1px solid #bdcbd5;border-radius:5px;background:white}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:#fff;border:1px solid #dbe3e8;border-radius:10px;padding:15px}.card span{font-size:12px;color:#647789}.card b{display:block;font-size:23px;margin-top:7px}canvas{width:100%;height:360px;display:block}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #e4e9ee;text-align:right}th:first-child,td:first-child{text-align:left}th{background:#eef3f6}.legend{display:flex;gap:15px;flex-wrap:wrap;font-size:13px}.legend i{display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle;background:var(--c)}.note{border-left:4px solid #ca8344;padding:10px;background:#fff8f0;line-height:1.5}@media(max-width:700px){body{padding:0 10px}.cards{grid-template-columns:repeat(2,1fr)}}</style>
@@ -21,15 +18,8 @@ function chart(id,series,labels){let c=$(id),r=c.getBoundingClientRect(),z=devic
 function draw(){let origin=$('origin').value,H=+$('horizon').value,rows=D.p.filter(x=>x.origin_utc===origin&&x.horizon_h<=H),by={};rows.forEach(r=>(by[r.model_id]??=[]).push(r));let actual=by.direct_total_gbdt.map(x=>x.actual_kwh),series=[{v:actual,c:C.actual}];['seasonal_naive','direct_total_gbdt','modular_component_gbdt'].forEach(id=>series.push({v:by[id].map(x=>x.load_hat),c:C[id]}));chart('line',series,by.direct_total_gbdt.map(x=>x.timestamp_utc));$('legend').innerHTML=[{id:'actual'},...['seasonal_naive','direct_total_gbdt','modular_component_gbdt'].map(id=>({id}))].map(o=>`<span><i style="--c:${C[o.id]}"></i>${N[o.id]}</span>`).join('');let m=by.modular_component_gbdt,comp=[{v:m.map(x=>x.base_hat),c:'#657f9d'},{v:m.map(x=>x.behaviour_hat),c:'#ca8a45'},{v:m.map(x=>x.thermal_hat),c:'#278a7b'}];chart('components',comp,m.map(x=>x.timestamp_utc));$('componentLegend').innerHTML=['Base','Behaviour','Thermal'].map((n,i)=>`<span><i style="--c:${comp[i].c}"></i>${n}</span>`).join('');let chosen=D.m.filter(x=>x.bucket===({24:'hours_1_24',72:'hours_25_72',168:'hours_1_168'}[H]));$('metrics').innerHTML='<table><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>WAPE</th><th>Total error</th><th>Peak-hour MAE</th><th>Peak timing</th></tr>'+chosen.map(x=>`<tr><td>${N[x.model_id]}</td><td>${x.mae_kwh.toFixed(3)}</td><td>${x.rmse_kwh.toFixed(3)}</td><td>${x.wape_pct.toFixed(1)}%</td><td>${x.total_error_pct.toFixed(1)}%</td><td>${x.peak_hour_mae_kwh.toFixed(3)}</td><td>${x.peak_timing_mae_h.toFixed(1)} h</td></tr>`).join('')+'</table>';let d=by.direct_total_gbdt,mod=by.modular_component_gbdt;$('cards').innerHTML=[['Actual total',actual.reduce((a,b)=>a+b,0).toFixed(1)+' kWh'],['Direct total',d.reduce((a,b)=>a+b.load_hat,0).toFixed(1)+' kWh'],['Modular total',mod.reduce((a,b)=>a+b.load_hat,0).toFixed(1)+' kWh'],['Actual peak',Math.max(...actual).toFixed(2)+' kWh']].map(x=>`<div class="card"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}
 window.addEventListener('resize',draw);setup();</script></html>'''
 
-def build(input_dir: Path):
-    predictions=pd.read_csv(input_dir/'forecast_predictions.csv')
-    metrics=pd.read_csv(input_dir/'forecast_metrics.csv')
-    payload={'p':predictions.to_dict('records'),'m':metrics.to_dict('records')}
-    target=input_dir/'forecast_dashboard.html'
-    target.write_text(HTML.replace('/* DATA */','const D='+json.dumps(payload,separators=(',',':'))+';'),encoding='utf-8')
-    print(target)
-
-if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--input',type=Path,default=ROOT/'results/forecast')
-    args=parser.parse_args();build(args.input)
+def render_forecast_dashboard(predictions: pd.DataFrame, metrics: pd.DataFrame) -> str:
+    """Embed supplied forecast artifacts into the retained comparison interface."""
+    payload = {'p': predictions.to_dict('records'), 'm': metrics.to_dict('records')}
+    data = json.dumps(payload, separators=(',', ':'), ensure_ascii=False).replace('<', '\\u003c')
+    return HTML.replace('/* DATA */', 'const D=' + data + ';')

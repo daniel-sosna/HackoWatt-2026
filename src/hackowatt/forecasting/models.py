@@ -13,6 +13,8 @@ import math
 import numpy as np
 import pandas as pd
 
+from ..data.generated import read_hourly
+
 BASE_COLUMNS = ['fridge_kwh', 'router_kwh', 'standby_kwh']
 THERMAL_COLUMNS = ['space_heating_kwh', 'water_heater_kwh']
 FORBIDDEN_DIRECT_COLUMNS = {
@@ -103,14 +105,7 @@ class HistogramBoostingRegressor:
 
 
 def load_hourly(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path, dtype={'vacation_block': 'string'}, low_memory=False)
-    utc = pd.to_datetime(df['timestamp_utc'], utc=True, errors='raise')
-    if not utc.is_monotonic_increasing or utc.duplicated().any():
-        raise ValueError('hourly.csv must have sorted unique UTC timestamps')
-    if not (utc.diff().dropna() == pd.Timedelta(hours=1)).all():
-        raise ValueError('hourly.csv must be continuous at hourly UTC frequency')
-    df.index = utc
-    return df
+    return read_hourly(path)
 
 
 def exogenous_frame(df: pd.DataFrame) -> pd.DataFrame:
