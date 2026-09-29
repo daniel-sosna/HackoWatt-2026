@@ -129,10 +129,3 @@ def generate_profile(root, config, weather, public, school, reference, house,
         (out/name).write_text(json.dumps(obj,indent=2,ensure_ascii=False),encoding='utf-8')
     print(f'Saved {count:,} hours to {out}. Total {report["total_kwh"]:,.0f} kWh.',flush=True)
     return out
-
-
-def generate(root, config_path, output_override=None):
-    """Backward-compatible generator; application code uses ``services`` instead."""
-    from ..services.generation import generate_historical
-
-    return generate_historical(root, config_path, output_override)

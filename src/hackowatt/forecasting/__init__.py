@@ -1,3 +1,5 @@
-"""Leakage-safe load forecasting models and experiment runner."""
+"""Forecast-model implementations and selected-model policy."""
 
-from .models import *  # noqa: F403 - stable public forecasting API
+from .issue_date import SELECTED_MODELS
+
+__all__ = ["SELECTED_MODELS"]

@@ -1,6 +1,6 @@
 # Family behaviour appliance and heating generation rules
 
-Version 3.1 | 28 September 2026 | Implementation specification
+Version 3.2 | 29 September 2026 | Implementation specification
 
 This document specifies the runnable synthetic household generator in this repository. It covers Marek, Ania and their school-age children Kuba and Zosia in Katowice, appliance electricity, direct resistance space heating and a separate electric hot-water tank. It uses the supplied weather, Polish calendars and Polish household time-use reference. There is no photovoltaic generation, battery, heat pump, air conditioner, grid export or financial optimisation.
 
@@ -8,7 +8,7 @@ The output is a complete hourly electricity and activity dataset over the suppli
 
 ## Evidence and precedence
 
-[USER] Heating is direct electric, with a separate boiler; children are school-age; the weather timestamps are local Polish time and wind is in km/h. The Eurostat file is reported to match this family composition and to represent the 2010 reference.
+[USER] Heating is direct electric, with a separate boiler; children are school-age; wind is in km/h. The updated observed-weather timestamps carry an explicit UTC offset, while issued forecast timestamps are Polish local time. The Eurostat file is reported to match this family composition and to represent the 2010 reference.
 
 [SCENARIO] The organisers specify a detached Silesian family home, an industrial shift worker, a hybrid worker, two children and indicative device consumption. These determine identity and broad routines.
 
@@ -24,13 +24,15 @@ hourly.csv contains appliance-level electricity, thermal state, weather and occu
 
 # Weather and calendar alignment
 
-The supplied weather file contains 17,544 nominal hourly labels from 2024-01-01 00:00 to 2025-12-31 23:00, without null values. Generate only this local calendar coverage. Export unique UTC interval starts and their Europe/Warsaw representations. Each output interval is one physical hour; local days can contain 23, 24 or 25 hours.
+The observed Katowice weather file contains continuous hourly UTC-labelled observations from 2024-01-01 through its latest supplied timestamp, without null values. Generate exactly this source coverage. Export unique UTC interval starts and their Europe/Warsaw representations. Each output interval is one physical hour; local days can contain 23, 24 or 25 hours. Because the source carries an explicit UTC offset, it is converted directly to UTC and no local DST hour is removed or duplicated.
 
-The raw CSV has 24 labels every day. Remove nonexistent local 02:00 on 2024-03-31 and 2025-03-30. Reuse the provided 02:00 weather for both UTC offsets on 2024-10-27 and 2025-10-26. This is a disclosed normalisation assumption, not two independently measured autumn observations. Preserve raw files and report every changed mapping. Reject ordinary gaps, duplicate source timestamps, nonnumeric values or invalid humidity/cloud ranges.
+The observed source provides temperature, relative humidity, wind speed, cloud cover and shortwave radiation. It does not provide precipitation or snowfall; generation sets both to 0.0 for every hour as an explicit source-completion convention. Reject ordinary gaps, duplicate source timestamps, nonnumeric values or invalid humidity/cloud ranges. Preserve raw files and record their hashes.
 
-Temperature is in degrees Celsius; wind is converted from km/h to m/s by division by 3.6. Precipitation is assumed mm and snowfall cm per source hour; radiation is assumed W/m2. These last units must be confirmed against the original export if a different source is used. Preserve cloud cover and relative humidity even when they do not enter a fitted response. Weather is held constant within each model hour. Using instantaneous radiation as an hourly heat-gain proxy is an approximation.
+Temperature is in degrees Celsius; wind is converted from km/h to m/s by division by 3.6. Radiation is assumed W/m2. Preserve cloud cover and relative humidity even when they do not enter a fitted response. Weather is held constant within each model hour. Using instantaneous radiation as an hourly heat-gain proxy is an approximation.
 
-Public holidays and inclusive school-break ranges are read from the supplied text files. Weekends are independent calendar flags. Add Christmas Eve 2025 through calendar_corrections.json, citing the Polish ministry; do not alter the raw text. School-specific closure days, annual leave and replacement days for weekend holidays are not inferred. Calendars must be updated before extending the weather period.
+The separate issued-forecast file has 168 hourly Polish-local labels and provides temperature, humidity, wind, cloud cover, snowfall and shortwave radiation. It has no precipitation column, which is set to 0.0 by the forecast feature adapter. This file is not used to generate household history. An issue-date forecast model trains on observed weather before its issue timestamp and substitutes the issued weather only for its future feature rows.
+
+Public holidays and inclusive school-break ranges are read from the supplied 2024-2026 text files. Weekends are independent calendar flags. Add Christmas Eve 2025 through calendar_corrections.json, citing the Polish ministry; do not alter the raw text. School-specific closure days, annual leave and replacement days for weekend holidays are not inferred. Calendars must be updated before extending the weather period.
 
 ## Weather effect on outdoor activity
 
@@ -160,7 +162,7 @@ Material limits include a single thermal zone; no cooling plant and no room-leve
 
 ## Sources
 
-User-supplied activity_time_use_full.csv, silesia_weather_full.csv, public/school calendar text files and user confirmations. Source hashes are saved in validation.json.
+User-supplied activity_time_use_full.csv, katowice_weather_2024_today.csv, katowice_weather_forecast.csv, 2024-2026 public/school calendar text files and user confirmations. Source hashes are saved in validation.json.
 
 HackoWatt-Scenario-2-A-Silesian-Family-Home.pdf; HackoWatt-Common-Challenge-Assumptions.pdf; HackoWatt_Two_Model_Architectures.pdf; Richardson_Lekhel_HackoWatt_Guide_v2.pdf; RULES_FOR_ENGY_CONSUMP.docx. Pensioner example schedules do not define this family's behaviour. Challenge renewable-generation instructions are deferred by the user's explicit current scope.
 

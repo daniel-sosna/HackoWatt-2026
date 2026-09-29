@@ -9,6 +9,23 @@ import pandas as pd
 WEATHER_COLUMNS = ['temperature_2m', 'cloud_cover', 'relative_humidity_2m',
                    'wind_speed_10m', 'precipitation', 'snowfall', 'shortwave_radiation_instant']
 
+UPDATED_WEATHER_COLUMNS = {
+    'temperature_2m': 'temperature_2m',
+    'relative_humidity_2m': 'relative_humidity_2m',
+    'wind_speed_10m': 'wind_speed_10m',
+    'cloud_cover': 'cloud_cover',
+    'shortwave_radiation': 'shortwave_radiation_instant',
+}
+
+FORECAST_WEATHER_COLUMNS = {
+    'temperature_2m_C': 'temperature_2m',
+    'relative_humidity_2m_pct': 'relative_humidity_2m',
+    'wind_speed_10m_kmh': 'wind_speed_10m',
+    'cloud_cover_pct': 'cloud_cover',
+    'snowfall_cm': 'snowfall',
+    'shortwave_radiation_wm2': 'shortwave_radiation_instant',
+}
+
 def load_config(path):
     c = json.loads(Path(path).read_text(encoding='utf-8'))
     if c['weather']['wind_unit'] not in ('km/h', 'm/s'):
@@ -72,51 +89,121 @@ def resolve_house(config, rng):
         raise ValueError('Tank setpoint must exceed use temperature')
     return result
 
-def load_weather(path, config):
-    raw = pd.read_csv(path)
-    if not set(['time'] + WEATHER_COLUMNS) <= set(raw.columns):
-        raise ValueError('Missing required weather columns')
-    labels = pd.DatetimeIndex(pd.to_datetime(raw['time'], errors='raise'))
-    if labels.tz is not None or labels.has_duplicates or not labels.is_monotonic_increasing:
-        raise ValueError('Expected sorted unique naive source timestamps')
-    if not (labels == labels.floor('h')).all():
-        raise ValueError('Weather must be aligned to hourly boundaries')
-    vals = raw[WEATHER_COLUMNS].apply(pd.to_numeric, errors='raise')
-    if not np.isfinite(vals.to_numpy()).all():
+def _validate_weather_values(values):
+    if not np.isfinite(values.to_numpy()).all():
         raise ValueError('Missing/nonfinite weather values; no silent interpolation')
     for name in ['cloud_cover', 'relative_humidity_2m']:
-        if not vals[name].between(0, 100).all():
+        if not values[name].between(0, 100).all():
             raise ValueError(f'Invalid {name}')
-    if (vals[['wind_speed_10m','precipitation','snowfall','shortwave_radiation_instant']] < 0).any().any():
+    if (values[['wind_speed_10m','precipitation','snowfall','shortwave_radiation_instant']] < 0).any().any():
         raise ValueError('Negative nonnegative weather variable')
+
+
+def _normalise_updated_weather(raw):
+    if not set(UPDATED_WEATHER_COLUMNS).issubset(raw.columns) or 'timestamp_local' not in raw:
+        raise ValueError('Missing required updated observed-weather columns')
+    values = raw[list(UPDATED_WEATHER_COLUMNS)].rename(columns=UPDATED_WEATHER_COLUMNS).copy()
+    # The refreshed Katowice feed does not provide precipitation or snowfall.
+    # Zero is an explicit source convention, not interpolation.
+    values['precipitation'] = 0.0
+    values['snowfall'] = 0.0
+    labels = pd.DatetimeIndex(pd.to_datetime(raw['timestamp_local'], utc=True, errors='raise'))
+    return labels, values[WEATHER_COLUMNS], 'offset-aware UTC timestamps; precipitation and snowfall set to 0 because absent from source'
+
+
+def load_weather(path, config):
+    raw = pd.read_csv(path)
+    updated = 'timestamp_local' in raw.columns and set(UPDATED_WEATHER_COLUMNS).issubset(raw.columns)
+    if updated:
+        labels, vals, source_note = _normalise_updated_weather(raw)
+    else:
+        if not set(['time'] + WEATHER_COLUMNS) <= set(raw.columns):
+            raise ValueError('Missing required weather columns')
+        labels = pd.DatetimeIndex(pd.to_datetime(raw['time'], errors='raise'))
+        vals = raw[WEATHER_COLUMNS].copy()
+        source_note = 'legacy naive local timestamps'
+    if labels.has_duplicates or not labels.is_monotonic_increasing:
+        raise ValueError('Expected sorted unique weather timestamps')
+    if not (labels == labels.floor('h')).all():
+        raise ValueError('Weather must be aligned to hourly boundaries')
+    vals = vals.apply(pd.to_numeric, errors='raise')
+    _validate_weather_values(vals)
     mode = config['weather']['time_mode']
     if mode not in ('Europe/Warsaw', 'UTC'):
         raise ValueError('time_mode must be Europe/Warsaw or UTC')
-    start = labels[0].tz_localize(mode)
-    end = (labels[-1] + pd.Timedelta(hours=1)).tz_localize(mode)
-    utc = pd.date_range(start.tz_convert('UTC'), end.tz_convert('UTC'), freq='h', inclusive='left')
-    wanted = utc.tz_convert(mode).tz_localize(None)
-    missing = wanted.difference(labels)
-    if len(missing):
-        raise ValueError(f'Missing weather hours, e.g. {missing[:5].tolist()}')
-    dropped = labels.difference(wanted)
-    if len(dropped):
-        nonexistent = labels[labels.tz_localize(mode, ambiguous=True, nonexistent='NaT').isna()]
-        if len(dropped.difference(nonexistent)):
-            raise ValueError('Unexpected excluded source rows')
-    frame = vals.set_axis(labels).reindex(wanted).set_axis(utc)
+    if labels.tz is not None:
+        utc = pd.date_range(labels[0].tz_convert('UTC'), labels[-1].tz_convert('UTC'), freq='h')
+        missing = utc.difference(labels.tz_convert('UTC'))
+        if len(missing):
+            raise ValueError(f'Missing weather hours, e.g. {missing[:5].tolist()}')
+        dropped = pd.DatetimeIndex([])
+        frame = vals.set_axis(labels.tz_convert('UTC')).reindex(utc)
+    else:
+        start = labels[0].tz_localize(mode)
+        end = (labels[-1] + pd.Timedelta(hours=1)).tz_localize(mode)
+        utc = pd.date_range(start.tz_convert('UTC'), end.tz_convert('UTC'), freq='h', inclusive='left')
+        wanted = utc.tz_convert(mode).tz_localize(None)
+        missing = wanted.difference(labels)
+        if len(missing):
+            raise ValueError(f'Missing weather hours, e.g. {missing[:5].tolist()}')
+        dropped = labels.difference(wanted)
+        if len(dropped):
+            nonexistent = labels[labels.tz_localize(mode, ambiguous=True, nonexistent='NaT').isna()]
+            if len(dropped.difference(nonexistent)):
+                raise ValueError('Unexpected excluded source rows')
+        frame = vals.set_axis(labels).reindex(wanted).set_axis(utc)
     frame['wind_ms'] = frame.wind_speed_10m / (3.6 if config['weather']['wind_unit'] == 'km/h' else 1)
     audit = {'source_rows': len(raw), 'output_hours': len(frame), 'time_mode': mode,
              'dropped_nonexistent_local_hours': dropped.astype(str).tolist(),
-             'reused_ambiguous_local_hours': wanted[wanted.duplicated()].astype(str).tolist(),
-             'start_utc': str(utc[0]), 'last_utc': str(utc[-1]), 'wind_unit': config['weather']['wind_unit']}
+             'reused_ambiguous_local_hours': [], 'start_utc': str(utc[0]),
+             'last_utc': str(utc[-1]), 'wind_unit': config['weather']['wind_unit'],
+             'source_note': source_note}
     return frame, audit
+
+
+def load_forecast_weather(path: Path) -> pd.DataFrame:
+    """Load issued Polish-local weather into the canonical forecast schema."""
+    raw = pd.read_csv(path)
+    if "time" not in raw or not set(FORECAST_WEATHER_COLUMNS).issubset(raw.columns):
+        raise ValueError("Missing required forecast-weather columns")
+    labels = pd.DatetimeIndex(pd.to_datetime(raw["time"], errors="raise"))
+    if labels.tz is not None or labels.has_duplicates or not labels.is_monotonic_increasing:
+        raise ValueError("Forecast weather must use sorted, unique naive Polish-local timestamps")
+    if not (labels == labels.floor("h")).all():
+        raise ValueError("Forecast weather must be aligned to hourly boundaries")
+    values = raw[list(FORECAST_WEATHER_COLUMNS)].rename(columns=FORECAST_WEATHER_COLUMNS).copy()
+    values["precipitation"] = 0.0
+    values = values[WEATHER_COLUMNS].apply(pd.to_numeric, errors="raise")
+    _validate_weather_values(values)
+    values.index = labels.tz_localize("Europe/Warsaw").tz_convert("UTC")
+    values["wind_ms"] = values["wind_speed_10m"] / 3.6
+    return values
+
+
+def load_forecast_weather(path):
+    """Load an issued forecast in Polish local time into model weather fields."""
+    raw = pd.read_csv(path)
+    if 'time' not in raw or not set(FORECAST_WEATHER_COLUMNS).issubset(raw.columns):
+        raise ValueError('Missing required forecast-weather columns')
+    labels = pd.DatetimeIndex(pd.to_datetime(raw['time'], errors='raise'))
+    if labels.tz is not None or labels.has_duplicates or not labels.is_monotonic_increasing:
+        raise ValueError('Forecast weather must use sorted unique naive Polish-local timestamps')
+    if not (labels == labels.floor('h')).all():
+        raise ValueError('Forecast weather must be aligned to hourly boundaries')
+    values = raw[list(FORECAST_WEATHER_COLUMNS)].rename(columns=FORECAST_WEATHER_COLUMNS).copy()
+    values['precipitation'] = 0.0
+    values = values[WEATHER_COLUMNS].apply(pd.to_numeric, errors='raise')
+    _validate_weather_values(values)
+    utc = labels.tz_localize('Europe/Warsaw').tz_convert('UTC')
+    values.index = utc
+    values['wind_ms'] = values['wind_speed_10m'] / 3.6
+    return values
 
 def load_calendars(root, config):
     raw = root / 'data/raw'
-    public = set(re.findall(r'^\d{4}-\d{2}-\d{2}', (raw/'poland_public_holidays_2024_2025.txt').read_text(), re.M))
+    public = set(re.findall(r'^\d{4}-\d{2}-\d{2}', (raw/'poland_public_holidays_2024_2026.txt').read_text(), re.M))
     school = set()
-    for a, b in re.findall(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', (raw/'poland_school_holidays_2024_2025.txt').read_text()):
+    for a, b in re.findall(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', (raw/'poland_school_holidays_2024_2026.txt').read_text()):
         school.update(pd.date_range(a, b).strftime('%Y-%m-%d'))
     correction = json.loads((root/'data/calendar_corrections.json').read_text())
     if config['calendar']['apply_corrections']:

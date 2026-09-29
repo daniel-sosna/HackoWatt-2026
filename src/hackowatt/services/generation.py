@@ -17,7 +17,7 @@ def generate_historical(root: Path, config_path: Path, output_override: Path | N
     configuration = load_config(config_path)
     streams = [np.random.default_rng(seed) for seed in np.random.SeedSequence(configuration["seed"]).spawn(3)]
     house = resolve_house(configuration, streams[0])
-    provider = weather_provider or CsvWeatherProvider(root / "data/raw/silesia_weather_full.csv")
+    provider = weather_provider or CsvWeatherProvider(root / "data/raw/katowice_weather_2024_today.csv")
     weather, audit = provider.historical(configuration)
     weather.attrs["audit"] = audit
     public, school = load_calendars(root, configuration)
