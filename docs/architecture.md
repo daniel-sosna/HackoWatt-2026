@@ -61,10 +61,9 @@ python main.py dashboard
 optional `--port`. The dashboard has Historical profile, Forecast quality, and
 PV planning views backed by the same generated dataset and forecast artifacts.
 
-The previous standalone HTML renderers are retained under `hackowatt.legacy`
-for backwards-compatible offline export work, but are intentionally not
-registered as application commands. New features must target the packages above
-and the unified dashboard rather than adding another dashboard pipeline.
+The previous standalone HTML renderers and compatibility facades have been
+removed. New features must target the packages above and the unified dashboard
+rather than adding another dashboard pipeline.
 
 ## Extending a capability
 

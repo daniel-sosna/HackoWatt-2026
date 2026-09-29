@@ -25,7 +25,3 @@ class ProjectPaths:
     def resolve(self, value: str | Path) -> Path:
         path = Path(value)
         return path if path.is_absolute() else self.root / path
-
-    def path(self, value: str | Path) -> Path:
-        """Compatibility name for command adapters; prefer ``resolve`` in new code."""
-        return self.resolve(value)

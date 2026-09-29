@@ -12,8 +12,6 @@ dependencies = [
   "pandas>=2.2,<3",
   "tzdata>=2025.1",
   "reportlab>=4,<5",
-  "Pillow>=10,<13",
-  "lxml>=6,<7",
   "streamlit>=1.40,<2",
 ]
 
@@ -22,6 +20,3 @@ hackowatt = "hackowatt.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-hackowatt.legacy = ["assets/*.html", "assets/*.css", "assets/*.js"]

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from .base import ProjectContext
+from ..config import ProjectPaths
 from ..services import generate_historical
 
 
@@ -17,7 +17,7 @@ class HistoricalDataComponent:
         parser.add_argument("--output", help="Optional output directory, relative to the project root.")
         parser.set_defaults(component=self)
 
-    def run(self, args: argparse.Namespace, context: ProjectContext) -> int:
-        output = context.path(args.output) if args.output else None
-        generate_historical(context.root, context.path(args.config), output)
+    def run(self, args: argparse.Namespace, paths: ProjectPaths) -> int:
+        output = paths.resolve(args.output) if args.output else None
+        generate_historical(paths.root, paths.resolve(args.config), output)
         return 0

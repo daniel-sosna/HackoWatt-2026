@@ -7,10 +7,6 @@ from typing import Protocol, Sequence
 
 from ..config import ProjectPaths
 
-# Kept as an alias so existing component integrations do not break. New code
-# imports ProjectPaths directly from hackowatt.config.
-ProjectContext = ProjectPaths
-
 
 class Component(Protocol):
     """A unit of application behaviour that can register and run itself."""
@@ -20,7 +16,7 @@ class Component(Protocol):
 
     def add_arguments(self, subparsers: argparse._SubParsersAction) -> None: ...
 
-    def run(self, args: argparse.Namespace, context: ProjectContext) -> int: ...
+    def run(self, args: argparse.Namespace, paths: ProjectPaths) -> int: ...
 
 
 @dataclass

@@ -81,16 +81,7 @@ savings and simple payback using the selected Hackathon or Poland economic mode.
 Run `generate` first so the dashboard can also expose conservative
 washing-machine and dishwasher shifting candidates from `appliance_events.csv`.
 The formulas, terminology and limitations are documented in
-`docs/renewable_energy_simulator.md`. The evidence-backed design for replacing
-the heating and hot-water percentage proxies with a calibrated thermal digital
-twin and rolling model predictive controller is in `docs/thermal_mpc_design.md`.
-The real-world data map, user settings, feature priorities, judging alignment,
-and five-minute demo path are in `docs/product_strategy.md`.
-
-`python tools/build_simulator_handbook_pdf.py` creates the presentation-ready,
-printable methodology handbook at `output/pdf/HackoWatt_Simulator_Handbook.pdf`.
-The prior offline exporter is archived under `hackowatt.legacy`; the maintained
-dashboard does not copy presentation files into generated results.
+`docs/renewable.md`.
 
 ## Sources and time handling
 
@@ -108,6 +99,6 @@ The configuration supplies the random seed. Separate random streams are used for
 
 ## Code structure
 
-`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified Streamlit dashboard calls services and contains no simulation, forecasting, or PV calculations. Compatibility imports preserve the prior public module names; archived standalone HTML renderers live in `hackowatt.legacy` and are not part of the maintained application path. See `docs/architecture.md` for the full diagram and extension guidance.
+`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified Streamlit dashboard calls services and contains no simulation, forecasting, or PV calculations. There are no compatibility wrappers or alternate dashboard pipelines. See `docs/architecture.md` for the full diagram and extension guidance.
 
 This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.

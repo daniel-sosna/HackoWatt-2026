@@ -52,14 +52,6 @@ is selected retrospectively by validation WAPE, not on an independent holdout.
 Direct-total predictions and modular component estimates are displayed as
 separate estimates and must not be described as an exact decomposition.
 
-The archived offline renewable exporter accepts an `--issued-forecast` static CSV snapshot with at
-least 24 consecutive UTC hours: `timestamp_utc`, `load_kwh`, `outdoor_c`,
-`wind_ms` and `radiation_wm2`. Energy, wind and irradiance must be finite and
-nonnegative; temperature may be negative. Optional `issued_at_utc` must be one
-issue time at or before the target start; an omitted issue time is unknown.
-Optional interval bounds must be nonnegative and ordered. Optional
-`pv_kwh_per_kwp` replaces the irradiance proxy without annual-yield rescaling.
-Thermal planning is enabled only with `space_heating_kwh`, `water_heating_kwh`
-and `hot_water_draw_l`. Sensor temperature ranges are checked, but freshness
-checks and an automatic refresh/control service remain future work. See the
-presentation handbook and `docs/renewable_energy_simulator.md` for full fields.
+Future issued-weather or external-forecast imports belong behind the weather or
+forecasting provider interfaces. They must preserve the issue timestamp and use
+only values known at that time; no import adapter is included in this MVP.
