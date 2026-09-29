@@ -72,6 +72,21 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 `main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. The **Forecast quality** page retains the interactive comparison controls from the original visual dashboard; its renderer only receives forecast artifacts from the service. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
 
+To fetch future weather for the Silesian home, run:
+
+```bash
+python main.py fetch-weather
+```
+
+This downloads up to seven days of hourly Open-Meteo weather for Katowice and
+writes `results/weather_forecast.csv`. Use `--days` (1--16) or `--output` to
+change the range or destination. The CSV keeps the project's weather variable
+names and units, uses UTC timestamp values in `time`, and records the retrieval
+time as an explicit UTC timestamp in `issue_time_utc`. This forecast feed is separate from
+`data/raw/silesia_weather_full.csv`; it does not replace or modify historical
+weather. The existing `forecast` command is a historical backtest and does not
+yet consume this live-weather CSV to produce a live load forecast.
+
 ## Renewable Energy Simulator
 
 The **PV planning** page in `python main.py dashboard` restores the richer

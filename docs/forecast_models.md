@@ -52,6 +52,10 @@ is selected retrospectively by validation WAPE, not on an independent holdout.
 Direct-total predictions and modular component estimates are displayed as
 separate estimates and must not be described as an exact decomposition.
 
-Future issued-weather or external-forecast imports belong behind the weather or
-forecasting provider interfaces. They must preserve the issue timestamp and use
-only values known at that time; no import adapter is included in this MVP.
+`python main.py fetch-weather` downloads hourly Open-Meteo forecasts for
+Katowice, Silesia, and writes `results/weather_forecast.csv`. The export uses
+the project's weather feature names and units, UTC timestamp values in `time`,
+and a repeated explicit UTC `issue_time_utc` retrieval timestamp. It is independent of the immutable
+historical weather CSV. The existing `forecast` command remains a historical
+backtest; a production load-forecast service that joins this issued weather to
+past meter data and planned schedules is not yet implemented.
