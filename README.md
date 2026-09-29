@@ -18,12 +18,14 @@ Run `main.py` with the required component. Generation dates come from the weathe
 
 ```bash
 python main.py generate
-python main.py forecast
 python main.py dashboard
+python main.py forecast --forecast-start-local "2025-09-10 00:00:00"
 python -m unittest discover -s tests -v
 ```
 
 A generated example is already available in `results/default`. It contains 17,544 physical hours for local calendar years 2024--2025, including 29 February.
+
+For PyCharm users who prefer a configurable file over command-line options, edit and run `tools/run_issue_date_forecast.py`.
 
 ## House parameters
 
@@ -70,7 +72,7 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 ## Forecasting
 
-`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. The **Forecast quality** page retains the interactive comparison controls from the original visual dashboard; its renderer only receives forecast artifacts from the service. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
+`main.py forecast` trains only through a selected Polish local issue time and returns one approved horizon. It uses Direct Random Forest for 24 hours and Modular CatBoost for 72 or 168 hours. The dashboard exposes the same controls and renders the selected forecast directly; it never trains on future measured demand, occupancy, or thermal state. The Python integration contract is documented in `docs/issue_date_forecast_api.md`.
 
 To fetch future weather for the Silesian home, run:
 
@@ -80,12 +82,22 @@ python main.py fetch-weather
 
 This downloads up to seven days of hourly Open-Meteo weather for Katowice and
 writes `results/weather_forecast.csv`. Use `--days` (1--16) or `--output` to
-change the range or destination. The CSV keeps the project's weather variable
-names and units, uses UTC timestamp values in `time`, and records the retrieval
-time as an explicit UTC timestamp in `issue_time_utc`. This forecast feed is separate from
-`data/raw/silesia_weather_full.csv`; it does not replace or modify historical
-weather. The existing `forecast` command is a historical backtest and does not
-yet consume this live-weather CSV to produce a live load forecast.
+change the range or destination. Its offset-aware Polish-local timestamps and
+weather columns match the forecast loader, including repeated hours during the
+autumn daylight-saving transition. Pass the file to the issue-date forecast
+command so those issued weather values replace only the future weather rows:
+
+```bash
+python main.py forecast \
+  --input results/default/hourly.csv \
+  --forecast-start-local "2025-09-10 00:00:00" \
+  --horizon-hours 72 \
+  --forecast-weather results/weather_forecast.csv
+```
+
+This separate feed does not modify the historical weather input. The selected
+forecast start and horizon must be covered by both the load-history data and
+the issued weather CSV.
 
 ## Renewable Energy Simulator
 
@@ -113,6 +125,6 @@ The configuration supplies the random seed. Separate random streams are used for
 
 ## Code structure
 
-`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified local web dashboard calls services and contains no simulation, forecasting, or PV calculations. Its `POST /api/forecast` endpoint is the explicit boundary for a user-triggered forecast run. There are no compatibility wrappers or alternate dashboard pipelines. See `docs/architecture.md` for the full diagram and extension guidance.
+`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified local web dashboard calls the public `hackowatt.issue_date_forecast` boundary through `POST /api/issue-date-forecast`; it contains no simulation or model logic. See `docs/architecture.md` for the full diagram and extension guidance.
 
 This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.

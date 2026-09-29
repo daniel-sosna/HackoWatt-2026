@@ -36,7 +36,7 @@ data/ + config/ -----> weather/CsvWeatherProvider
 | `domain` | Small shared result objects only where they improve the service boundary. |
 | `weather` | Provider contract and the current static CSV provider. |
 | `simulation` | Behaviour, appliances, thermal model, and hourly profile export. |
-| `forecasting` | Leakage-safe features, models, and the rolling-origin experiment. |
+| `forecasting` | Leakage-safe issue-date feature preparation and selected Random Forest/CatBoost models. |
 | `analysis` | Downstream peak analysis. |
 | `optimisation` | Conservative flexible-load recommendations; it does not change demand. |
 | `renewable` | PV energy-flow and economic calculations. |
@@ -46,8 +46,9 @@ data/ + config/ -----> weather/CsvWeatherProvider
 | `web` | Local HTTP adapter: native dashboard views and narrowly-scoped API endpoints. |
 
 Business packages do not import web/UI packages. The dashboard calls
-`DashboardService`; `POST /api/forecast` calls `run_forecast`; commands call
-`generate_historical` or `run_forecast`.
+`DashboardService`; `POST /api/issue-date-forecast` calls the public
+`hackowatt.issue_date_forecast` boundary; commands call `generate_historical`
+or that same public forecast API.
 This keeps new weather providers, models, analysis, and dashboard views local to
 their own package.
 
@@ -55,14 +56,14 @@ their own package.
 
 ```bash
 python main.py generate
-python main.py forecast
+python main.py forecast --forecast-start-local "2025-09-10 00:00:00"
 python main.py dashboard
 ```
 
-`dashboard` starts a local FastAPI/Uvicorn server and accepts `--input`,
-`--forecast-input`, and an optional `--port`. The dashboard has polished interactive Historical profile,
-Forecast quality, and PV planning views backed by the same generated dataset and
-forecast artifacts. The richer HTML/CSS/JavaScript visualisations live in
+`dashboard` starts a local FastAPI/Uvicorn server and accepts `--input` and an
+optional `--port`. The dashboard has polished interactive Historical profile,
+issue-date Forecast, and PV planning views backed by the same generated dataset.
+The richer HTML/CSS/JavaScript visualisations live in
 `presentation/assets` and are pure renderers: services supply DataFrames and
 small view models, while the browser only hosts the rendered interface.
 
@@ -80,5 +81,5 @@ dashboard.
 
 For example, a real weather provider implements `WeatherProvider`; the
 generation service can receive it without changing the simulation. A new
-forecast model belongs in `forecasting` and keeps the existing output contract
-so analysis and the dashboard continue to work.
+forecast model belongs in `forecasting` and is selected through the public
+issue-date contract without changing the dashboard or its caller.

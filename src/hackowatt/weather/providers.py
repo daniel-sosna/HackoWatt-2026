@@ -18,13 +18,12 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 SILESIA_LATITUDE = 50.2649
 SILESIA_LONGITUDE = 19.0238
 OPEN_METEO_VARIABLES = {
-    "temperature_2m": "temperature_2m",
-    "relative_humidity_2m": "relative_humidity_2m",
-    "wind_speed_10m": "wind_speed_10m",
-    "cloud_cover": "cloud_cover",
-    "precipitation": "precipitation",
-    "snowfall": "snowfall",
-    "shortwave_radiation": "shortwave_radiation_instant",
+    "temperature_2m": "temperature_2m_C",
+    "relative_humidity_2m": "relative_humidity_2m_pct",
+    "wind_speed_10m": "wind_speed_10m_kmh",
+    "cloud_cover": "cloud_cover_pct",
+    "snowfall": "snowfall_cm",
+    "shortwave_radiation": "shortwave_radiation_wm2",
 }
 WEATHER_CSV_COLUMNS = ["time", *OPEN_METEO_VARIABLES.values()]
 
@@ -75,16 +74,15 @@ class OpenMeteoForecastProvider:
             raise ValueError("Expected sorted, unique UTC hourly forecast timestamps")
         if not (labels == labels.floor("h")).all():
             raise ValueError("Forecast timestamps must align to hourly boundaries")
-        frame["time"] = labels.tz_localize(None).astype(str)
+        frame["time"] = labels.tz_convert("Europe/Warsaw").astype(str)
 
         values = frame[WEATHER_CSV_COLUMNS[1:]].to_numpy(dtype=float)
         if not np.isfinite(values).all():
             raise ValueError("Forecast contains missing or nonfinite weather values")
-        for name in ("cloud_cover", "relative_humidity_2m"):
+        for name in ("cloud_cover_pct", "relative_humidity_2m_pct"):
             if not frame[name].between(0, 100).all():
                 raise ValueError(f"Invalid {name} in weather forecast")
-        for name in ("wind_speed_10m", "precipitation", "snowfall",
-                     "shortwave_radiation_instant"):
+        for name in ("wind_speed_10m_kmh", "snowfall_cm", "shortwave_radiation_wm2"):
             if (frame[name] < 0).any():
                 raise ValueError(f"Negative {name} in weather forecast")
 
