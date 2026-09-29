@@ -41,8 +41,11 @@ def create_web_app(generated_directory: Path, forecast_directory: Path) -> FastA
     def forecast() -> str:
         try:
             artifacts = service.forecast()
-        except FileNotFoundError as error:
-            return unavailable_view("Forecast unavailable", str(error))
+        except FileNotFoundError:
+            return unavailable_view(
+                "Forecast unavailable",
+                "Forecast data is not available yet.",
+            )
         return render_forecast_dashboard(artifacts.predictions, artifacts.metrics)
 
     @app.get("/views/planning", response_class=HTMLResponse)
