@@ -46,16 +46,26 @@ class DashboardService:
         forecast = result.forecast.copy()
         timestamps = pd.DatetimeIndex(pd.to_datetime(forecast["timestamp_utc"], utc=True))
         mode = ECONOMIC_MODES[tariff_mode]
+        tariff = local_tariff(timestamps, mode)
+        forecast["window"] = range(len(forecast))
+        forecast["window"] //= 24
+        forecast["tariff_price"] = tariff
+        forecast["forecast_cost"] = forecast["forecast_kwh"] * tariff
+        daily_costs = forecast.groupby("window", sort=True).agg(
+            start_local=("timestamp_local", "first"),
+            forecast_cost=("forecast_cost", "sum"),
+        ).reset_index()
         return {
             "timestamps": forecast["timestamp_local"].tolist(),
             "forecast_kwh": forecast["forecast_kwh"].round(4).tolist(),
-            "tariff_price": local_tariff(timestamps, mode).round(4).tolist(),
+            "tariff_price": tariff.round(4).tolist(),
             "currency": mode.currency,
             "tariff_label": mode.label,
             "model": result.model_id.replace("_", " ").title(),
             "horizon": result.manifest["horizon_hours"],
             "weather": result.manifest["forecast_weather_source"],
             "peaks": top_forecast_peaks(forecast).to_dict("records"),
+            "daily_costs": daily_costs.to_dict("records"),
         }
 
     def renewable_dashboard_source(self) -> dict:
