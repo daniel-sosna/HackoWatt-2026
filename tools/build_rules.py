@@ -60,7 +60,7 @@ for section in ['house','behaviour','devices','thermal','weather','calendar']:
     if section=='house':
         story.append(Spacer(1,10));story.append(Paragraph('All house units are encoded in parameter names. Distribution bounds are assumed, not survey-derived. Overrides always win. The default mode is sample; manual_example.json is a complete fixed-house example.',styles['body']))
     if section=='weather':
-        story.append(Paragraph('Supported time modes: Europe/Warsaw and UTC. The supplied file uses Europe/Warsaw as confirmed by the user. The named DST policy records the implemented civil-time correction; no alternative policy is silently selected.',styles['body']))
+        story.append(Paragraph('Observed timestamps with an explicit UTC offset are converted directly to UTC. Naive historical labels use the configured Europe/Warsaw policy. The supplied issued-weather forecast has naive Polish-local labels and is converted using Europe/Warsaw.',styles['body']))
 
 with (ROOT/'data/raw/activity_time_use_full.csv').open(encoding='utf-8-sig',newline='') as f:rows=list(csv.DictReader(f))
 for offset in range(0,len(rows),19):
@@ -70,7 +70,7 @@ for offset in range(0,len(rows),19):
 
 def footer(canvas,doc):
     canvas.saveState();canvas.setFont('Body',8);canvas.setFillColor(colors.HexColor('#617080'))
-    canvas.drawString(1.8*cm,.8*cm,'HackoWatt Family | Implemented rules v3.1')
+    canvas.drawString(1.8*cm,.8*cm,'HackoWatt Family | Implemented rules v3.2')
     canvas.drawRightString(A4[0]-1.8*cm,.8*cm,str(doc.page));canvas.restoreState()
 
 target=ROOT/'docs/rules_v3.pdf'

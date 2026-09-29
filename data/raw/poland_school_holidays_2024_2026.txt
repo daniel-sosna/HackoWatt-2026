@@ -1,4 +1,4 @@
-POLAND SCHOOL HOLIDAYS (SILESIA REGION) 2024-2025
+POLAND SCHOOL HOLIDAYS (SILESIA REGION) 2024-2026
 
 2024:
 2024-01-29 to 2024-02-11 | Monday    to Sunday    | 14 days | Winter Holidays (Ferie Zimowe - Silesia)
@@ -12,3 +12,10 @@ POLAND SCHOOL HOLIDAYS (SILESIA REGION) 2024-2025
 2025-04-17 to 2025-04-22 | Thursday  to Tuesday   | 6 days  | Easter Break (Wiosenna Przerwa)
 2025-06-28 to 2025-08-31 | Saturday  to Sunday    | 65 days | Summer Holidays (Wakacje)
 2025-12-23 to 2025-12-31 | Tuesday   to Wednesday | 9 days  | Christmas Break (Zimowa Przerwa)
+
+2026:
+2026-01-01 to 2026-01-01 | Thursday  to Thursday  | 1 day   | New Year Continuation of Winter Break
+2026-02-16 to 2026-03-01 | Monday    to Sunday    | 14 days | Winter Holidays (Ferie Zimowe - Silesia)
+2026-04-02 to 2026-04-07 | Thursday  to Tuesday   | 6 days  | Easter Break (Wiosenna Przerwa)
+2026-06-27 to 2026-08-31 | Saturday  to Monday    | 66 days | Summer Holidays (Wakacje)
+2026-12-23 to 2026-12-31 | Wednesday to Thursday  | 9 days  | Christmas Break (Zimowa Przerwa)

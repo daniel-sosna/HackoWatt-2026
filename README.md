@@ -42,7 +42,9 @@ calendar flags, occupancy, appliance loads, direct electric space heating,
 electric-boiler load, temperatures, and whole-home energy. The detailed column
 dictionary is `docs/hourly_data_dictionary.md`.
 
-The original source files remain unchanged under `data/raw/`. Generated files
+Observed weather is loaded from `data/raw/katowice_weather_2024_today.csv`.
+The generator uses every continuous hourly observation in that file, currently
+covering 2024 through its latest supplied timestamp. The original source files remain unchanged under `data/raw/`. Generated files
 under `results/` are intentionally ignored by Git.
 
 ## Forecast model
@@ -56,6 +58,10 @@ and Modular CatBoost for 72 or 168 hours. It writes:
 - `forecast_vs_actual.png` with actual and predicted load on one chart;
 - `manifest.json` with the issue time, training-row count, model policy, and
   error metrics.
+
+The runner reads `data/raw/katowice_weather_forecast.csv` as issued weather for
+the future feature rows. It retains observed weather for training. Change
+`FORECAST_WEATHER_CSV` in `run_issue_date_forecast.py` if a newer issued forecast is available.
 
 The bundled dataset supports historical backtests. A live deployment must
 provide issued weather and calendar values for future hours while withholding

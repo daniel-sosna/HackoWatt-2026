@@ -17,9 +17,10 @@ from hackowatt.issue_date_forecast import (  # noqa: E402
 
 
 # ===== EDIT THESE VALUES BEFORE RUNNING =====
-FORECAST_START_LOCAL = "2025-09-01 00:00:00"
-HORIZON_HOURS = 72  # Allowed values: 24, 72, or 168.
+FORECAST_START_LOCAL = "2026-09-28 00:00:00"
+HORIZON_HOURS = 24  # Allowed values: 24, 72, or 168.
 INPUT_HOURLY_CSV = PROJECT_ROOT / "results" / "default" / "hourly.csv"
+FORECAST_WEATHER_CSV = PROJECT_ROOT / "data" / "raw" / "katowice_weather_forecast.csv"
 OUTPUT_DIRECTORY = PROJECT_ROOT / "results" / "issue_date_forecast"
 # ============================================
 
@@ -34,6 +35,7 @@ def main() -> None:
         hourly_path=INPUT_HOURLY_CSV,
         forecast_start_local=FORECAST_START_LOCAL,
         horizon_hours=HORIZON_HOURS,
+        forecast_weather_path=FORECAST_WEATHER_CSV,
     )
     result = forecast_from_issue_date(request)
     write_issue_date_forecast(result, OUTPUT_DIRECTORY)

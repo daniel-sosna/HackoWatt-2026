@@ -17,22 +17,22 @@ class ModelTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.config=load_config(ROOT/'config/default.json')
-        cls.weather,cls.audit=load_weather(ROOT/'data/raw/silesia_weather_full.csv',cls.config)
+        cls.weather,cls.audit=load_weather(ROOT/'data/raw/katowice_weather_2024_today.csv',cls.config)
         cls.public,cls.school=load_calendars(ROOT,cls.config)
         cls.ref=load_reference(ROOT/'data/raw/activity_time_use_full.csv')
 
     def test_dst_and_coverage(self):
-        self.assertEqual(len(self.weather),17544)
+        self.assertEqual(len(self.weather),24072)
         dates=self.weather.index.tz_convert('Europe/Warsaw').strftime('%Y-%m-%d')
         for d,n in [('2024-03-31',23),('2024-10-27',25),('2025-03-30',23),('2025-10-26',25)]:
             self.assertEqual(sum(dates==d),n)
-        self.assertEqual(len(self.audit['dropped_nonexistent_local_hours']),2)
-        self.assertEqual(len(self.audit['reused_ambiguous_local_hours']),2)
-        self.assertAlmostEqual(self.weather.wind_ms.iloc[0],8.4/3.6)
+        self.assertEqual(len(self.audit['dropped_nonexistent_local_hours']),0)
+        self.assertEqual(len(self.audit['reused_ambiguous_local_hours']),0)
+        self.assertAlmostEqual(self.weather.wind_ms.iloc[0],9.7/3.6)
 
     def test_missing_weather_fails(self):
         with tempfile.TemporaryDirectory() as td:
-            raw=pd.read_csv(ROOT/'data/raw/silesia_weather_full.csv').drop(index=50)
+            raw=pd.read_csv(ROOT/'data/raw/katowice_weather_2024_today.csv').drop(index=50)
             p=Path(td)/'weather.csv';raw.to_csv(p,index=False)
             with self.assertRaisesRegex(ValueError,'Missing weather'):
                 load_weather(p,self.config)

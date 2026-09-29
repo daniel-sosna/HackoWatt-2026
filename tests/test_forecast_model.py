@@ -85,6 +85,31 @@ class ForecastModelPreparationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             selected_model_for_horizon(48)
 
+    def test_issued_weather_replaces_only_future_feature_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'hourly.csv'
+            forecast_path = Path(directory) / 'issued_weather.csv'
+            self.write_hourly_fixture(source)
+            issue = pd.Timestamp('2025-01-10 04:00:00+01:00')
+            local = pd.date_range(issue, periods=24, freq='h').tz_localize(None)
+            pd.DataFrame({
+                'time': local,
+                'temperature_2m_C': 99.0,
+                'relative_humidity_2m_pct': 70.0,
+                'wind_speed_10m_kmh': 12.0,
+                'cloud_cover_pct': 45.0,
+                'snowfall_cm': 0.0,
+                'shortwave_radiation_wm2': 0.0,
+            }).to_csv(forecast_path, index=False)
+
+            prepared = prepare_training_data(
+                source, Path(directory) / 'prepared', issue.isoformat(), 24, forecast_path)
+
+            cutoff = prepared.cutoff
+            self.assertEqual(prepared.base_features['temperature_2m'].iloc[cutoff], 99.0)
+            self.assertNotEqual(prepared.base_features['temperature_2m'].iloc[cutoff - 1], 99.0)
+            self.assertIn('issued forecast:', prepared.manifest['forecast_weather_source'])
+
     def test_residual_forecast_preserves_prior_week_when_correction_is_zero(self):
         index = pd.date_range('2025-01-01', periods=400, freq='h', tz='UTC')
         base = pd.DataFrame({'hour': index.hour, 'temperature': 10.0}, index=index)

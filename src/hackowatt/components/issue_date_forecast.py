@@ -23,6 +23,8 @@ class IssueDateForecastComponent:
                             help='First forecast hour in Europe/Warsaw time, for example "2025-09-10 00:00:00".')
         parser.add_argument('--horizon-hours', type=int, choices=(24, 72, 168), default=24,
                             help='Exact forecast horizon. The selected model depends on this value.')
+        parser.add_argument('--forecast-weather',
+                            help='Issued forecast-weather CSV relative to the project root. Future model weather uses this file.')
         parser.add_argument('--output', default='results/issue_date_forecast',
                             help='Output directory relative to the project root.')
         parser.set_defaults(component=self)
@@ -32,6 +34,7 @@ class IssueDateForecastComponent:
             hourly_path=context.path(args.input),
             forecast_start_local=args.forecast_start_local,
             horizon_hours=args.horizon_hours,
+            forecast_weather_path=context.path(args.forecast_weather) if args.forecast_weather else None,
         )
         result = forecast_from_issue_date(request)
         output_dir = context.path(args.output)

@@ -24,6 +24,7 @@ class ForecastRequest:
     hourly_path: Path
     forecast_start_local: str
     horizon_hours: int = 24
+    forecast_weather_path: Path | None = None
 
 
 @dataclass
@@ -63,7 +64,8 @@ def forecast_from_issue_date(request: ForecastRequest) -> ForecastResult:
     with tempfile.TemporaryDirectory(prefix='hackowatt_issue_date_') as directory:
         work_dir = Path(directory)
         _, load_metrics, spec = run_selected_model(
-            hourly_path, work_dir, request.forecast_start_local, horizon_hours=request.horizon_hours)
+            hourly_path, work_dir, request.forecast_start_local, horizon_hours=request.horizon_hours,
+            forecast_weather_path=request.forecast_weather_path)
         loads = pd.read_csv(work_dir/'load_predictions.csv')
         occupancy = pd.read_csv(work_dir/'occupancy_predictions.csv')
 
@@ -87,6 +89,7 @@ def forecast_from_issue_date(request: ForecastRequest) -> ForecastResult:
         'model_id': model_id,
         'training_ends_before_forecast': True,
         'training_rows': spec['rows_train'],
+        'forecast_weather_source': spec['forecast_weather_source'],
         'selection_policy': {str(hours): model for hours, model in SELECTED_MODELS.items()},
         'load_feature_rule': spec['load_feature_rule'],
         'recursive_test_policy': spec['recursive_test_policy'],

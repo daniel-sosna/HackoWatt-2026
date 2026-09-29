@@ -15,6 +15,8 @@ import tempfile
 import numpy as np
 import pandas as pd
 
+from .inputs import load_forecast_weather
+
 BASE_COLUMNS = ['fridge_kwh', 'router_kwh', 'standby_kwh']
 THERMAL_COLUMNS = ['space_heating_kwh', 'water_heater_kwh']
 
@@ -138,12 +140,12 @@ def lag_frame(values: pd.Series) -> pd.DataFrame:
 
 def prepare_training_data(hourly_path: Path, output_dir: Path,
                           forecast_start_local: str = '2025-05-01 00:00:00',
-                          horizon_hours: int = 168) -> PreparedData:
+                          horizon_hours: int = 168,
+                          forecast_weather_path: Path | None = None) -> PreparedData:
     """Create separate training/test copies for one bounded forecast window."""
     if horizon_hours not in (24, 72, 168):
         raise ValueError('horizon_hours must be one of 24, 72, or 168')
     df = load_hourly(hourly_path)
-    base = make_base_features(df)
     targets = component_targets(df)
     local_start = pd.Timestamp(forecast_start_local)
     if local_start.tzinfo is None:
@@ -154,6 +156,18 @@ def prepare_training_data(hourly_path: Path, output_dir: Path,
     cutoff = int(df.index.get_indexer([start_utc])[0])
     if cutoff < 168 or cutoff + horizon_hours > len(df):
         raise ValueError('Forecast start/horizon must leave 168 training hours and fit within hourly.csv')
+    model_weather = df.copy()
+    weather_source = 'observed weather in hourly.csv'
+    if forecast_weather_path is not None:
+        forecast = load_forecast_weather(Path(forecast_weather_path))
+        expected = df.index[cutoff:cutoff+horizon_hours]
+        missing = expected.difference(forecast.index)
+        if len(missing):
+            raise ValueError(f'Forecast weather does not cover requested horizon, e.g. {missing[:3].tolist()}')
+        for column in WEATHER_COLUMNS:
+            model_weather.loc[expected, column] = forecast.loc[expected, column].to_numpy()
+        weather_source = f'issued forecast: {Path(forecast_weather_path)}'
+    base = make_base_features(model_weather)
     lags = lag_frame(targets['total_kwh'])
     prepared = base.join(lags).copy()
     prepared.insert(0, 'timestamp_utc', df.index.astype(str))
@@ -185,6 +199,7 @@ def prepare_training_data(hourly_path: Path, output_dir: Path,
         'test_start_utc': str(test['timestamp_utc'].iloc[0]),
         'test_end_utc': str(test['timestamp_utc'].iloc[-1]),
         'calendar_weather_features': list(base.columns),
+        'forecast_weather_source': weather_source,
         'observed_energy_lag_columns': list(LAG_NAMES),
         'load_feature_rule': 'Load models receive occupancy_hat, never occupancy_mean. Recursive forecast predictions replace future energy lags with model predictions.',
         'targets': list(targets.columns),
@@ -374,7 +389,8 @@ def _regression_metrics(actual: np.ndarray, prediction: np.ndarray) -> dict:
 
 
 def run_selected_model(hourly_path: Path, output_dir: Path,
-                       forecast_start_local: str, horizon_hours: int) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+                       forecast_start_local: str, horizon_hours: int,
+                       forecast_weather_path: Path | None = None) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     """Train the configured model policy through one issue date.
 
     A 24-hour request trains Random Forest; 72- and 168-hour requests train
@@ -382,7 +398,7 @@ def run_selected_model(hourly_path: Path, output_dir: Path,
     selected algorithm to preserve the common output contract, then discarded
     with the temporary working directory owned by the public API.
     """
-    prepared = prepare_training_data(hourly_path, output_dir, forecast_start_local, horizon_hours)
+    prepared = prepare_training_data(hourly_path, output_dir, forecast_start_local, horizon_hours, forecast_weather_path)
     df = load_hourly(hourly_path)
     house = _load_house_parameters(hourly_path)
     base, targets, cutoff = prepared.base_features, prepared.targets, prepared.cutoff

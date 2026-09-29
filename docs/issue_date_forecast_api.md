@@ -26,6 +26,7 @@ request = ForecastRequest(
     hourly_path=Path("data/hourly.csv"),
     forecast_start_local="2025-09-10 00:00:00",
     horizon_hours=72,
+    forecast_weather_path=Path("data/raw/katowice_weather_forecast.csv"),
 )
 result = forecast_from_issue_date(request)
 payload = result.forecast.to_dict(orient="records")
@@ -38,6 +39,11 @@ model policy, training row count, recursive-lag policy, and backtest metric.
 `result.backtest_actual` is separate so an application cannot accidentally use
 future actual load as a forecast feature.
 
+When `forecast_weather_path` is supplied, its issued weather replaces only the
+future weather feature rows. Training rows always retain observed weather. The
+file must cover the requested future horizon. Missing precipitation in the
+current forecast source is explicitly represented as zero.
+
 ## Command-line use
 
 ```powershell
@@ -45,6 +51,7 @@ future actual load as a forecast feature.
   --input results/default/hourly.csv `
   --forecast-start-local "2025-09-10 00:00:00" `
   --horizon-hours 72 `
+  --forecast-weather data/raw/katowice_weather_forecast.csv `
   --output results/issue_date_forecast
 ```
 
@@ -62,9 +69,9 @@ same three output files as the command-line adapter.
 
 ## Current data boundary
 
-The bundled historical dataset is used as a backtest: it must contain the
+The bundled generated dataset is used as a backtest: it must contain the
 selected issue date, at least 168 preceding hours, and all requested future
-hours. Weather and calendar columns for these future rows are treated as known
-inputs. A live version must supply issued weather and calendar values for the
-future horizon while withholding future measured energy, occupancy, tank
+hours. Calendar values are treated as known inputs. Supply an issued weather
+file for the future horizon; otherwise the generated weather columns are used.
+For a live version, withhold future measured energy, occupancy, tank
 temperature, and appliance values.

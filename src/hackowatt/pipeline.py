@@ -14,7 +14,7 @@ def generate(root, config_path, output_override=None):
     out.mkdir(parents=True,exist_ok=True)
     streams=[np.random.default_rng(s) for s in np.random.SeedSequence(config['seed']).spawn(3)]
     house=resolve_house(config,streams[0])
-    weather,audit=load_weather(root/'data/raw/silesia_weather_full.csv',config)
+    weather,audit=load_weather(root/'data/raw/katowice_weather_2024_today.csv',config)
     public,school=load_calendars(root,config)
     reference=load_reference(root/'data/raw/activity_time_use_full.csv')
     print(f'Weather: {len(weather):,} physical hours. Generating family schedules...',flush=True)
