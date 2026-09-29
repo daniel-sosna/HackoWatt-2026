@@ -2,12 +2,12 @@
 from .base import ComponentRegistry
 from .dashboard import DashboardComponent
 from .historical_data import HistoricalDataComponent
-from .issue_date_forecast import IssueDateForecastComponent
+from .issue_date_forecast import ForecastComponent
 
 
 def built_in_registry() -> ComponentRegistry:
     registry = ComponentRegistry()
     registry.register(HistoricalDataComponent())
-    registry.register(IssueDateForecastComponent())
+    registry.register(ForecastComponent())
     registry.register(DashboardComponent())
     return registry

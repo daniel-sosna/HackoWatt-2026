@@ -39,7 +39,7 @@ def create_web_app(generated_directory: Path) -> FastAPI:
     @app.get("/views/forecast", response_class=HTMLResponse)
     def forecast() -> str:
         if latest_result is None:
-            return unavailable_view("Issue-date forecast", "Choose an issue date and horizon in the header, then run the selected model.")
+            return unavailable_view("Forecast", "Choose an issue date and horizon in the header, then run the selected model.")
         return render_issue_date_forecast(latest_result)
 
     @app.get("/views/planning", response_class=HTMLResponse)

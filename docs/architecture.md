@@ -56,7 +56,7 @@ their own package.
 
 ```bash
 python main.py generate
-python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
+python main.py forecast --forecast-start-local "2025-09-10 00:00:00"
 python main.py dashboard
 ```
 

@@ -19,7 +19,7 @@ Run `main.py` with the required component. Generation dates come from the weathe
 ```bash
 python main.py generate
 python main.py dashboard
-python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
+python main.py forecast --forecast-start-local "2025-09-10 00:00:00"
 python -m unittest discover -s tests -v
 ```
 
@@ -72,7 +72,7 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 ## Forecasting
 
-`main.py issue-date-forecast` trains only through a selected Polish local issue time and returns one approved horizon. It uses Direct Random Forest for 24 hours and Modular CatBoost for 72 or 168 hours. The dashboard exposes the same controls and renders the selected forecast directly; it never trains on future measured demand, occupancy, or thermal state. The Python integration contract is documented in `docs/issue_date_forecast_api.md`.
+`main.py forecast` trains only through a selected Polish local issue time and returns one approved horizon. It uses Direct Random Forest for 24 hours and Modular CatBoost for 72 or 168 hours. The dashboard exposes the same controls and renders the selected forecast directly; it never trains on future measured demand, occupancy, or thermal state. The Python integration contract is documented in `docs/issue_date_forecast_api.md`.
 
 ## Renewable Energy Simulator
 
@@ -100,6 +100,6 @@ The configuration supplies the random seed. Separate random streams are used for
 
 ## Code structure
 
-`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `issue-date-forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified local web dashboard calls the public `hackowatt.issue_date_forecast` boundary through `POST /api/issue-date-forecast`; it contains no simulation or model logic. See `docs/architecture.md` for the full diagram and extension guidance.
+`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified local web dashboard calls the public `hackowatt.issue_date_forecast` boundary through `POST /api/issue-date-forecast`; it contains no simulation or model logic. See `docs/architecture.md` for the full diagram and extension guidance.
 
 This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.

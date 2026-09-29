@@ -47,7 +47,7 @@ current forecast source is explicitly represented as zero.
 ## Command-line use
 
 ```powershell
-.venv\Scripts\python.exe main.py issue-date-forecast `
+.venv\Scripts\python.exe main.py forecast `
   --input results/default/hourly.csv `
   --forecast-start-local "2025-09-10 00:00:00" `
   --horizon-hours 72 `

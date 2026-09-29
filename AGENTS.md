@@ -19,7 +19,7 @@ Use `main.py` for the retained components:
 ```bash
 python main.py generate
 python main.py dashboard
-python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
+python main.py forecast --forecast-start-local "2025-09-10 00:00:00"
 ```
 
 For non-technical PyCharm use, edit and run `tools/run_issue_date_forecast.py`.

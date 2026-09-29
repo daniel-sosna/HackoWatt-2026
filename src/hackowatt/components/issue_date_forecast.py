@@ -11,9 +11,9 @@ from ..issue_date_forecast import (
 )
 
 
-class IssueDateForecastComponent:
-    name = 'issue-date-forecast'
-    help = 'Train through a manually supplied date and return one selected forecast horizon.'
+class ForecastComponent:
+    name = 'forecast'
+    help = 'Train through a supplied issue date and return one selected forecast horizon.'
 
     def add_arguments(self, subparsers: argparse._SubParsersAction) -> None:
         parser = subparsers.add_parser(self.name, help=self.help, description=self.help)
