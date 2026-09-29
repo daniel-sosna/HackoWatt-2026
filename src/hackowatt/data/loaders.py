@@ -162,41 +162,46 @@ def load_weather(path, config):
 
 
 def load_forecast_weather(path: Path) -> pd.DataFrame:
-    """Load issued Polish-local weather into the canonical forecast schema."""
+    """Load issued weather, accepting local timestamps with or without UTC offsets."""
     raw = pd.read_csv(path)
     if "time" not in raw or not set(FORECAST_WEATHER_COLUMNS).issubset(raw.columns):
         raise ValueError("Missing required forecast-weather columns")
-    labels = pd.DatetimeIndex(pd.to_datetime(raw["time"], errors="raise"))
-    if labels.tz is not None or labels.has_duplicates or not labels.is_monotonic_increasing:
-        raise ValueError("Forecast weather must use sorted, unique naive Polish-local timestamps")
+
+    time_values = raw["time"].astype(str)
+    has_offset = time_values.str.contains(r"(?:Z|[+-]\d{2}:\d{2})$", regex=True)
+    if has_offset.any() and not has_offset.all():
+        raise ValueError("Forecast weather timestamps must use a consistent timezone convention")
+
+    offset_aware = bool(has_offset.all())
+    labels = pd.DatetimeIndex(pd.to_datetime(raw["time"], errors="raise", utc=offset_aware))
+    if labels.has_duplicates or not labels.is_monotonic_increasing:
+        raise ValueError("Forecast weather must use sorted, unique timestamps")
+    if offset_aware:
+        labels = labels.tz_convert("UTC")
+    elif labels.tz is not None:
+        raise ValueError("Naive forecast timestamps are required when UTC offsets are absent")
     if not (labels == labels.floor("h")).all():
         raise ValueError("Forecast weather must be aligned to hourly boundaries")
+
+    index = labels if offset_aware else labels.tz_localize("Europe/Warsaw").tz_convert("UTC")
+    if len(index) > 1 and not (index[1:] - index[:-1] == pd.Timedelta(hours=1)).all():
+        raise ValueError("Forecast weather must contain continuous hourly timestamps")
+    if "issue_time_utc" in raw:
+        issue_values = raw["issue_time_utc"].dropna().astype(str).unique()
+        if len(issue_values) != 1:
+            raise ValueError("Forecast weather must have one consistent issue_time_utc")
+        issue_time = pd.Timestamp(issue_values[0])
+        if issue_time.tzinfo is None:
+            raise ValueError("issue_time_utc must include a timezone")
+        if (index < issue_time.ceil("h")).any():
+            raise ValueError("Forecast weather contains hours before its issue time")
+
     values = raw[list(FORECAST_WEATHER_COLUMNS)].rename(columns=FORECAST_WEATHER_COLUMNS).copy()
     values["precipitation"] = 0.0
     values = values[WEATHER_COLUMNS].apply(pd.to_numeric, errors="raise")
     _validate_weather_values(values)
-    values.index = labels.tz_localize("Europe/Warsaw").tz_convert("UTC")
+    values.index = index
     values["wind_ms"] = values["wind_speed_10m"] / 3.6
-    return values
-
-
-def load_forecast_weather(path):
-    """Load an issued forecast in Polish local time into model weather fields."""
-    raw = pd.read_csv(path)
-    if 'time' not in raw or not set(FORECAST_WEATHER_COLUMNS).issubset(raw.columns):
-        raise ValueError('Missing required forecast-weather columns')
-    labels = pd.DatetimeIndex(pd.to_datetime(raw['time'], errors='raise'))
-    if labels.tz is not None or labels.has_duplicates or not labels.is_monotonic_increasing:
-        raise ValueError('Forecast weather must use sorted unique naive Polish-local timestamps')
-    if not (labels == labels.floor('h')).all():
-        raise ValueError('Forecast weather must be aligned to hourly boundaries')
-    values = raw[list(FORECAST_WEATHER_COLUMNS)].rename(columns=FORECAST_WEATHER_COLUMNS).copy()
-    values['precipitation'] = 0.0
-    values = values[WEATHER_COLUMNS].apply(pd.to_numeric, errors='raise')
-    _validate_weather_values(values)
-    utc = labels.tz_localize('Europe/Warsaw').tz_convert('UTC')
-    values.index = utc
-    values['wind_ms'] = values['wind_speed_10m'] / 3.6
     return values
 
 def load_calendars(root, config):

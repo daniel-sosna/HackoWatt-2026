@@ -74,6 +74,38 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 `main.py forecast` trains only through a selected Polish local issue time and returns one approved horizon. It uses Direct Random Forest for 24 hours and Modular CatBoost for 72 or 168 hours. The dashboard exposes the same controls and renders the selected forecast directly; it never trains on future measured demand, occupancy, or thermal state. The Python integration contract is documented in `docs/issue_date_forecast_api.md`.
 
+To fetch future weather for the Silesian home, run:
+
+```bash
+python main.py fetch-weather
+```
+
+This downloads up to seven days of hourly Open-Meteo weather for Katowice and
+writes `results/weather_forecast.csv`. Use `--days` (1--16) or `--output` to
+change the range or destination. Its offset-aware Polish-local timestamps and
+weather columns match the forecast loader, including repeated hours during the
+autumn daylight-saving transition. Pass the file to the issue-date forecast
+command so those issued weather values replace only the future weather rows.
+For example, after generating the expanded household dataset, the bundled
+issued forecast can be used for a matching historical issue date:
+
+```bash
+python main.py generate
+python main.py forecast \
+  --input results/default/hourly.csv \
+  --forecast-start-local "2026-09-28 00:00:00" \
+  --horizon-hours 24 \
+  --forecast-weather data/raw/katowice_weather_forecast.csv
+```
+
+This separate feed does not modify the historical weather input. The selected
+forecast start and horizon must be covered by both the load-history data and
+the issued weather CSV. `forecast` currently evaluates a historical issue date
+and requires target rows through the horizon in `hourly.csv`; a live load
+forecast beyond the available meter history is not implemented. The fetcher
+keeps only complete forecast hours at or after retrieval time and records that
+time in `issue_time_utc`.
+
 ## Renewable Energy Simulator
 
 The **PV planning** page in `python main.py dashboard` restores the richer
