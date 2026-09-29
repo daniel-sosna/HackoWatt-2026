@@ -12,7 +12,8 @@ dependencies = [
   "pandas>=2.2,<3",
   "tzdata>=2025.1",
   "reportlab>=4,<5",
-  "streamlit>=1.40,<2",
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
 ]
 
 [project.scripts]
@@ -20,3 +21,6 @@ hackowatt = "hackowatt.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+hackowatt.presentation = ["assets/*.html", "assets/renewable/*"]

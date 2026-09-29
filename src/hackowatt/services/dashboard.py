@@ -6,7 +6,8 @@ from pathlib import Path
 import pandas as pd
 
 from ..analysis import peak_hours
-from ..data import load_forecast_artifacts, load_generated_household
+from ..data import (load_forecast_artifacts, load_generated_household,
+                    load_historical_dashboard_source, load_thermal_dashboard_source)
 from ..optimisation import flexible_load_recommendations
 from ..renewable import ECONOMIC_MODES, evaluate_pv
 
@@ -35,8 +36,27 @@ class DashboardService:
             "peaks": peak_hours(hourly),
         }
 
+    def historical_dashboard_source(self) -> dict:
+        """Return the validated data needed by the historical presentation."""
+        return load_historical_dashboard_source(self.generated_directory)
+
     def forecast(self):
         return load_forecast_artifacts(self.forecast_directory)
+
+    def renewable_dashboard_source(self) -> dict:
+        """Prepare inputs for the rich planner without coupling services to HTML."""
+        household = self.historical()
+        try:
+            forecast = self.forecast()
+        except FileNotFoundError:
+            forecast = None
+        return {
+            "hourly": household.hourly,
+            "events": household.appliance_events,
+            "forecast_predictions": forecast.predictions if forecast else None,
+            "forecast_metrics": forecast.metrics if forecast else None,
+            "thermal_model": load_thermal_dashboard_source(self.generated_directory),
+        }
 
     def renewable(self, capacity_kwp: float, specific_yield: float, economic_mode: str) -> dict:
         household = self.historical()

@@ -2,7 +2,7 @@
 
 HackoWatt is one local Python application with static JSON and CSV files as its
 only source of household data. `main.py` is the canonical command entry point;
-the Streamlit dashboard is a presentation adapter, not a second pipeline.
+the local web dashboard is a presentation adapter, not a second pipeline.
 
 ```text
 config/default.json + data/raw/*.csv
@@ -24,7 +24,7 @@ data/ + config/ -----> weather/CsvWeatherProvider
                            services/ (orchestration and view models)
                                       |
                                       v
-                         app/streamlit_app.py and CLI components/
+                  web.py (native HTML + JSON endpoints) and CLI components/
 ```
 
 ## Package responsibilities
@@ -42,10 +42,12 @@ data/ + config/ -----> weather/CsvWeatherProvider
 | `renewable` | PV energy-flow and economic calculations. |
 | `services` | Thin use cases that join data/providers and domain modules. |
 | `components` | CLI argument adapters only. |
-| `app` | The one Streamlit presentation entry point. |
+| `presentation` | Dashboard renderers and visual assets, with no business rules. |
+| `web` | Local HTTP adapter: native dashboard views and narrowly-scoped API endpoints. |
 
-Business packages do not import Streamlit. The dashboard calls
-`DashboardService`; commands call `generate_historical` or `run_forecast`.
+Business packages do not import web/UI packages. The dashboard calls
+`DashboardService`; `POST /api/forecast` calls `run_forecast`; commands call
+`generate_historical` or `run_forecast`.
 This keeps new weather providers, models, analysis, and dashboard views local to
 their own package.
 
@@ -57,17 +59,21 @@ python main.py forecast
 python main.py dashboard
 ```
 
-`dashboard` starts Streamlit and accepts `--input`, `--forecast-input`, and an
-optional `--port`. The dashboard has Historical profile, Forecast quality, and
-PV planning views backed by the same generated dataset and forecast artifacts.
+`dashboard` starts a local FastAPI/Uvicorn server and accepts `--input`,
+`--forecast-input`, and an optional `--port`. The dashboard has polished interactive Historical profile,
+Forecast quality, and PV planning views backed by the same generated dataset and
+forecast artifacts. The richer HTML/CSS/JavaScript visualisations live in
+`presentation/assets` and are pure renderers: services supply DataFrames and
+small view models, while the browser only hosts the rendered interface.
 
-The previous standalone HTML renderers and compatibility facades have been
-removed. New features must target the packages above and the unified dashboard
-rather than adding another dashboard pipeline.
+Standalone dashboard commands and compatibility facades have been removed. The
+retained visual assets are embedded by the unified dashboard rather than forming
+another pipeline. New features must target the packages above and the unified
+dashboard.
 
 ## Extending a capability
 
-1. Put new business logic in its owning package, with no Streamlit dependency.
+1. Put new business logic in its owning package, with no web/UI dependency.
 2. Add/extend a small service if the feature joins multiple packages or files.
 3. Add one UI view/control or one CLI component that invokes the service.
 4. Add a focused contract/model test only when business logic changed.

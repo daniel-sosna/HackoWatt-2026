@@ -1,6 +1,7 @@
 """Repository for the static CSV outputs produced by the simulator."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -33,3 +34,36 @@ def load_generated_household(directory: Path) -> GeneratedHouseholdData:
             f"Expected {hourly_path} and {events_path}; run `python main.py generate` first."
         )
     return GeneratedHouseholdData(directory, read_hourly(hourly_path), pd.read_csv(events_path))
+
+
+def load_historical_dashboard_source(directory: Path) -> dict:
+    """Load the additional generated artifacts required by the historical UI."""
+    household = load_generated_household(directory)
+    directory = household.directory
+    required = {
+        "people": directory / "residents_hourly.csv",
+        "comparison": directory / "eurostat_comparison.csv",
+        "report": directory / "validation.json",
+    }
+    if any(not path.exists() for path in required.values()):
+        raise FileNotFoundError("Historical dashboard data is incomplete; rerun `python main.py generate`.")
+    return {
+        "hourly": household.hourly,
+        "people": pd.read_csv(required["people"]),
+        "comparison": pd.read_csv(required["comparison"]),
+        "report": json.loads(required["report"].read_text(encoding="utf-8")),
+    }
+
+
+def load_thermal_dashboard_source(directory: Path) -> dict:
+    """Load generated thermal assumptions for the presentation-only planner."""
+    directory = Path(directory)
+    house_path, config_path = directory / "resolved_house.json", directory / "run_config.json"
+    if not house_path.exists() or not config_path.exists():
+        return {"available": False, "status": "House/config files unavailable"}
+    return {
+        "available": True,
+        "house": json.loads(house_path.read_text(encoding="utf-8")),
+        "settings": json.loads(config_path.read_text(encoding="utf-8")).get("thermal", {}),
+        "status": "stateful one-zone RC building and well-mixed tank",
+    }
