@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..analysis import peak_hours
+from ..analysis import peak_hours, top_forecast_peaks
 from ..data import (load_generated_household, load_historical_dashboard_source,
                     load_thermal_dashboard_source)
 from ..optimisation import flexible_load_recommendations
-from ..renewable import ECONOMIC_MODES, evaluate_pv
+from ..renewable import ECONOMIC_MODES, evaluate_pv, local_tariff
 
 
 class DashboardService:
@@ -38,6 +38,25 @@ class DashboardService:
     def historical_dashboard_source(self) -> dict:
         """Return the validated data needed by the historical presentation."""
         return load_historical_dashboard_source(self.generated_directory)
+
+    def forecast_dashboard_source(self, result, tariff_mode: str = "hackathon") -> dict:
+        """Prepare the selected forecast, tariff series, and daily peak summary."""
+        if tariff_mode not in ECONOMIC_MODES:
+            raise ValueError(f"Unknown tariff mode: {tariff_mode}")
+        forecast = result.forecast.copy()
+        timestamps = pd.DatetimeIndex(pd.to_datetime(forecast["timestamp_utc"], utc=True))
+        mode = ECONOMIC_MODES[tariff_mode]
+        return {
+            "timestamps": forecast["timestamp_local"].tolist(),
+            "forecast_kwh": forecast["forecast_kwh"].round(4).tolist(),
+            "tariff_price": local_tariff(timestamps, mode).round(4).tolist(),
+            "currency": mode.currency,
+            "tariff_label": mode.label,
+            "model": result.model_id.replace("_", " ").title(),
+            "horizon": result.manifest["horizon_hours"],
+            "weather": result.manifest["forecast_weather_source"],
+            "peaks": top_forecast_peaks(forecast).to_dict("records"),
+        }
 
     def renewable_dashboard_source(self) -> dict:
         """Prepare inputs for the rich planner without coupling services to HTML."""
