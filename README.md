@@ -1,80 +1,103 @@
 # HackoWatt Family
 
-A local Python project for PyCharm Community Edition. It generates a synthetic
-hourly electricity profile for a four-person family in Silesia and provides one
-configurable load-forecast model.
+A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The historical household generator contains no PV or battery; the separate Renewable Energy Simulator evaluates rooftop PV against that unchanged demand profile.
 
-The repository contains only four product capabilities:
+## Quick start
 
-- synthetic household-data generation;
-- a local dashboard for checking generated data;
-- a forecast from a manually selected Polish local issue date;
-- editable rules, source material, configuration, and documentation.
+Create and activate a Python 3.11+ virtual environment from the repository root:
 
-## PyCharm workflow
-
-1. Open `config/default.json` to set or override house parameters.
-2. Run `main.py` with the `generate` parameter. This writes the generated data
-   to `results/default/`.
-3. Optionally run `main.py` with the `dashboard` parameter and open
-   `results/default/dashboard.html` to inspect appliances, occupancy, thermal
-   state, and validation diagnostics.
-4. Open `run_issue_date_forecast.py`, edit its date and horizon settings, then
-   run that file directly. The forecast is written to
-   `results/issue_date_forecast/`.
-
-## Command-line equivalents
-
-```powershell
-.venv\Scripts\python.exe main.py generate
-.venv\Scripts\python.exe main.py dashboard
-.venv\Scripts\python.exe run_issue_date_forecast.py
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-`main.py issue-date-forecast` is available for developers who prefer explicit
-arguments. Its public request/response contract is documented in
-`docs/issue_date_forecast_api.md`.
+Use `requirements.txt` for normal development and runtime installs. Use `requirements-tested.txt` instead when reproducing the exact dependency versions used by the retained validation checks. On Windows, activate with `.venv\\Scripts\\activate`.
 
-## Generated data
+Run `main.py` with the required component. Generation dates come from the weather file and are not set separately. `dashboard` starts the unified local web application.
 
-`results/default/hourly.csv` is the canonical model input. It contains weather,
-calendar flags, occupancy, appliance loads, direct electric space heating,
-electric-boiler load, temperatures, and whole-home energy. The detailed column
-dictionary is `docs/hourly_data_dictionary.md`.
-
-Observed weather is loaded from `data/raw/katowice_weather_2024_today.csv`.
-The generator uses every continuous hourly observation in that file, currently
-covering 2024 through its latest supplied timestamp. The original source files remain unchanged under `data/raw/`. Generated files
-under `results/` are intentionally ignored by Git.
-
-## Forecast model
-
-The date runner retrains strictly on rows before `FORECAST_START_LOCAL` and
-accepts only 24, 72, or 168 hours. It uses Direct Random Forest for 24 hours
-and Modular CatBoost for 72 or 168 hours. It writes:
-
-- `forecast.csv` with the selected forecast and predicted occupancy;
-- `backtest_actual.csv` separately for historical evaluation;
-- `forecast_vs_actual.png` with actual and predicted load on one chart;
-- `manifest.json` with the issue time, training-row count, model policy, and
-  error metrics.
-
-The runner reads `data/raw/katowice_weather_forecast.csv` as issued weather for
-the future feature rows. It retains observed weather for training. Change
-`FORECAST_WEATHER_CSV` in `run_issue_date_forecast.py` if a newer issued forecast is available.
-
-The bundled dataset supports historical backtests. A live deployment must
-provide issued weather and calendar values for future hours while withholding
-future measured load, occupancy, and thermal state.
-
-## Rules and documentation
-
-The editable household rules are in `docs/rules_v3.md`; the visual review copy
-is `docs/rules_v3.pdf`. Rebuild it after editing with:
-
-```powershell
-.venv\Scripts\python.exe tools\build_rules.py
+```bash
+python main.py generate
+python main.py dashboard
+python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
+python -m unittest discover -s tests -v
 ```
 
-`docs/architecture.md` describes the retained components. Organiser materials
-are retained in `docs/` as immutable source references.
+A generated example is already available in `results/default`. It contains 17,544 physical hours for local calendar years 2024--2025, including 29 February.
+
+## House parameters
+
+Edit `config/default.json`. `house.mode = "sample"` draws only fields that have a distribution definition, once for the whole house; the drawn values remain fixed. `house.overrides` always takes priority:
+
+```json
+"overrides": {
+  "floor_area_m2": 140,
+  "heating_capacity_kw": 8,
+  "tank_volume_l": 150
+}
+```
+
+This is an input example, not a capacity recommendation. The default 3.5 kW capacity preserves the organiser example's upper bound and may be insufficient for a complete house. The model does not artificially force indoor temperature to the setpoint: inadequate heating appears as a comfort deficit in the data.
+
+For a fully manual home, use `config/manual_example.json`: every value is numeric and `mode = "manual"`. This mode rejects remaining sampled fields that have not been replaced manually. The realised house is always saved to `resolved_house.json`.
+
+```bash
+python main.py generate --config config/manual_example.json --output results/manual
+python main.py dashboard --input results/manual
+```
+
+## What to inspect in the dashboard
+
+The Historical profile page restores the detailed interactive dashboard: date range, appliance and resident filters, monthly totals, hourly activities and occupancy, indoor and tank temperatures, the heating-weather relationship, and an adult Eurostat comparison. Appliance charts can be saved as PNG. Hover displays the exact timestamp with UTC offset and the energy value.
+
+Inspect winter underheating, summer overheating because there is no air conditioner, unmet hot-water demand, rejected activities, and differences from Eurostat. Automated checks confirm internal consistency; they do not prove that the profile matches a real meter.
+
+## Outputs
+
+| File | Contents |
+|---|---|
+| `hourly.csv` | Weather, appliance and heating/boiler kWh, total, one-minute power peak, temperatures, occupancy, and calendar. |
+| `residents_hourly.csv` | Minutes of each main activity per resident and hour; each resident totals exactly 60 minutes per hour. |
+| `resident_events.csv` | Continuous activity intervals and at-home status. |
+| `appliance_events.csv` | Event-based appliance runs; background loads are stored in `hourly.csv`. |
+| `activity_proposals.csv` | Proposed and accepted activity times, including rejection reasons. |
+| `eurostat_comparison.csv` | Adult participation and duration compared with the input Eurostat table. |
+| `calendar.csv` | Applied weekends, breaks, shifts, and working-from-home days. |
+| `validation.json` | Checks, diagnostics, constraints, source hashes, and DST handling. |
+| `resolved_house.json`, `run_config.json` | Realised house parameters and run configuration. |
+
+In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means power. `mean_kw` is numerically equal to `total_kwh` only because intervals are one physical hour. `peak_1min_kw` is the maximum minute-level power. `hot_water_unmet_kwh` is unmet thermal demand and is not consumed electricity. `thermal_residual_kwh` is a numerical balance residual, also not a load.
+
+## Forecasting
+
+`main.py issue-date-forecast` trains only through a selected Polish local issue time and returns one approved horizon. It uses Direct Random Forest for 24 hours and Modular CatBoost for 72 or 168 hours. The dashboard exposes the same controls and renders the selected forecast directly; it never trains on future measured demand, occupancy, or thermal state. The Python integration contract is documented in `docs/issue_date_forecast_api.md`.
+
+## Renewable Energy Simulator
+
+The **PV planning** page in `python main.py dashboard` restores the richer
+interactive planning interface: scenario comparison, PV-sizing and cash-flow
+views, flexible-load suggestions, forecast exploration, and comfort controls.
+Its HTML/CSS/JavaScript assets are presentation-only; the page receives loaded
+artifacts through `DashboardService` and uses the existing renewable and
+optimisation business logic. The formulas, terminology and limitations are
+documented in `docs/renewable.md`.
+
+## Sources and time handling
+
+Raw source files are preserved without changes in `data/raw`. Weather time is interpreted as Polish local time and wind as km/h, as confirmed by the user. The raw weather file has no DST entries: two non-existent spring hours are omitted, and two repeated autumn hours receive the same weather. Operations are listed in `validation.json`; the final UTC timeline is unique. Raw weather values are not interpolated. Other missing values cause an error.
+
+The calendar is amended through `data/calendar_corrections.json`, which adds 24 December 2025. The original file is not changed. The correction source is recorded in JSON. Disable `calendar.apply_corrections` if required.
+
+## Rules and reproducibility
+
+The final rules are in English: `docs/rules_v3.pdf`, with editable source in `docs/rules_v3.md`. Rebuild the PDF with `python tools/build_rules.py`. Parameter tables and Eurostat values are inserted from the actual configuration and CSV rather than duplicated manually. The organiser's source documents are in `docs/`.
+
+For current-scenario validation, the complete 55-column `hourly.csv` dictionary, ML rules, and candidate real-home calibration data feeds, see `docs/hourly_data_dictionary.md`.
+
+The configuration supplies the random seed. Separate random streams are used for the house, behaviour, and appliances. The same configuration, code version, and dependency versions reproduce the same result. New weather files must contain continuous hourly data and consistent calendars. Update calendars before generating a different period.
+
+## Code structure
+
+`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `issue-date-forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified local web dashboard calls the public `hackowatt.issue_date_forecast` boundary through `POST /api/issue-date-forecast`; it contains no simulation or model logic. See `docs/architecture.md` for the full diagram and extension guidance.
+
+This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.

@@ -2,7 +2,7 @@
 
 `hackowatt.issue_date_forecast` is the stable Python integration boundary for
 an application that lets a user select a forecast start date. Its internal
-training code is `hackowatt.forecast_model`; applications should call the
+training code is `hackowatt.forecasting.issue_date`; applications should call the
 public API rather than import that implementation module.
 
 For every call, it trains on rows strictly earlier than the requested Polish

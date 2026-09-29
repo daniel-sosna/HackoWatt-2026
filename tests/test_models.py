@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
-from hackowatt.inputs import load_config,load_weather,load_calendars,load_reference,resolve_house
-from hackowatt.behaviour import simulate_behaviour,CODE,calibrate_probabilities,schedule_family_vacations
-from hackowatt.devices import simulate_devices,cycle_profile
-from hackowatt.thermal import rc_step,simulate_thermal
+from hackowatt.data import load_config,load_weather,load_calendars,load_reference,resolve_house
+from hackowatt.simulation.behaviour import simulate_behaviour,CODE,calibrate_probabilities,schedule_family_vacations
+from hackowatt.simulation.devices import simulate_devices,cycle_profile
+from hackowatt.simulation.thermal import rc_step,simulate_thermal
 
 class ModelTests(unittest.TestCase):
     @classmethod

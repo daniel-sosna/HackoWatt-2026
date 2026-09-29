@@ -161,6 +161,25 @@ def load_weather(path, config):
     return frame, audit
 
 
+def load_forecast_weather(path: Path) -> pd.DataFrame:
+    """Load issued Polish-local weather into the canonical forecast schema."""
+    raw = pd.read_csv(path)
+    if "time" not in raw or not set(FORECAST_WEATHER_COLUMNS).issubset(raw.columns):
+        raise ValueError("Missing required forecast-weather columns")
+    labels = pd.DatetimeIndex(pd.to_datetime(raw["time"], errors="raise"))
+    if labels.tz is not None or labels.has_duplicates or not labels.is_monotonic_increasing:
+        raise ValueError("Forecast weather must use sorted, unique naive Polish-local timestamps")
+    if not (labels == labels.floor("h")).all():
+        raise ValueError("Forecast weather must be aligned to hourly boundaries")
+    values = raw[list(FORECAST_WEATHER_COLUMNS)].rename(columns=FORECAST_WEATHER_COLUMNS).copy()
+    values["precipitation"] = 0.0
+    values = values[WEATHER_COLUMNS].apply(pd.to_numeric, errors="raise")
+    _validate_weather_values(values)
+    values.index = labels.tz_localize("Europe/Warsaw").tz_convert("UTC")
+    values["wind_ms"] = values["wind_speed_10m"] / 3.6
+    return values
+
+
 def load_forecast_weather(path):
     """Load an issued forecast in Polish local time into model weather fields."""
     raw = pd.read_csv(path)

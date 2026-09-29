@@ -1,8 +1,10 @@
 # Exact dependency set used for the retained validation checks.
 numpy==2.5.3
-pandas==3.0.6
+pandas==2.3.3
 tzdata==2026.4
 reportlab==4.5.1
+fastapi==0.141.1
+uvicorn==0.54.0
 scikit-learn==1.6.1
 catboost==1.2.8
 matplotlib==3.10.1

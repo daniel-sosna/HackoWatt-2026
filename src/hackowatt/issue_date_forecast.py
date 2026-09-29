@@ -14,7 +14,7 @@ import tempfile
 
 import pandas as pd
 
-from .forecast_model import SELECTED_MODELS, run_selected_model
+from .forecasting.issue_date import SELECTED_MODELS, run_selected_model
 
 
 @dataclass(frozen=True)

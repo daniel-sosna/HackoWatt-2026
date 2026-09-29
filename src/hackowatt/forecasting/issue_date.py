@@ -15,7 +15,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 
-from .inputs import load_forecast_weather
+from ..data import load_forecast_weather
 
 BASE_COLUMNS = ['fridge_kwh', 'router_kwh', 'standby_kwh']
 THERMAL_COLUMNS = ['space_heating_kwh', 'water_heater_kwh']

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from .base import ProjectContext
+from ..config import ProjectPaths
 from ..issue_date_forecast import (
     ForecastRequest,
     forecast_from_issue_date,
@@ -29,15 +29,15 @@ class IssueDateForecastComponent:
                             help='Output directory relative to the project root.')
         parser.set_defaults(component=self)
 
-    def run(self, args: argparse.Namespace, context: ProjectContext) -> int:
+    def run(self, args: argparse.Namespace, paths: ProjectPaths) -> int:
         request = ForecastRequest(
-            hourly_path=context.path(args.input),
+            hourly_path=paths.resolve(args.input),
             forecast_start_local=args.forecast_start_local,
             horizon_hours=args.horizon_hours,
-            forecast_weather_path=context.path(args.forecast_weather) if args.forecast_weather else None,
+            forecast_weather_path=paths.resolve(args.forecast_weather) if args.forecast_weather else None,
         )
         result = forecast_from_issue_date(request)
-        output_dir = context.path(args.output)
+        output_dir = paths.resolve(args.output)
         write_issue_date_forecast(result, output_dir)
         print(f"Model: {result.model_id}")
         print(f"Forecast: {result.manifest['forecast_start_local']} for {args.horizon_hours} hours")

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .components import built_in_registry
-from .components.base import ProjectContext
+from .config import ProjectPaths
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,4 +21,4 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.component.run(args, ProjectContext.discover(args.project_root))
+    return args.component.run(args, ProjectPaths.discover(args.project_root))

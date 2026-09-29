@@ -3,24 +3,22 @@ import json
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from .inputs import load_config, load_weather, load_calendars, load_reference, resolve_house, hashes
+from ..data import hashes
 from .behaviour import simulate_behaviour, PEOPLE, ACTIVITIES, CODE, REFERENCES
-from .devices import simulate_devices, runs
+from .devices import simulate_devices
 from .thermal import simulate_thermal
 
-def generate(root, config_path, output_override=None):
-    root=Path(root);config=load_config(config_path)
-    out=Path(output_override) if output_override else root/config['output']['directory']
+def generate_profile(root, config, weather, public, school, reference, house,
+                     behaviour_rng, device_rng, output_directory):
+    """Run the pure simulation/export phase with already-loaded inputs."""
+    root = Path(root)
+    out = Path(output_directory)
     out.mkdir(parents=True,exist_ok=True)
-    streams=[np.random.default_rng(s) for s in np.random.SeedSequence(config['seed']).spawn(3)]
-    house=resolve_house(config,streams[0])
-    weather,audit=load_weather(root/'data/raw/katowice_weather_2024_today.csv',config)
-    public,school=load_calendars(root,config)
-    reference=load_reference(root/'data/raw/activity_time_use_full.csv')
+    audit = weather.attrs.get('audit', {})
     print(f'Weather: {len(weather):,} physical hours. Generating family schedules...',flush=True)
-    behaviour=simulate_behaviour(weather,public,school,reference,config,streams[1])
+    behaviour=simulate_behaviour(weather,public,school,reference,config,behaviour_rng)
     print('Generating appliance events and hot-water draws...',flush=True)
-    power,water,events=simulate_devices(behaviour,weather,config,streams[2])
+    power,water,events=simulate_devices(behaviour,weather,config,device_rng)
     print('Solving building and water-tank heat balances...',flush=True)
     thermal=simulate_thermal(weather,behaviour,power,water,house,config)
     power.update({k:thermal.pop(k) for k in ['space_heating','water_heater']})
@@ -131,3 +129,10 @@ def generate(root, config_path, output_override=None):
         (out/name).write_text(json.dumps(obj,indent=2,ensure_ascii=False),encoding='utf-8')
     print(f'Saved {count:,} hours to {out}. Total {report["total_kwh"]:,.0f} kWh.',flush=True)
     return out
+
+
+def generate(root, config_path, output_override=None):
+    """Backward-compatible generator; application code uses ``services`` instead."""
+    from ..services.generation import generate_historical
+
+    return generate_historical(root, config_path, output_override)

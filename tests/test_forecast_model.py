@@ -9,7 +9,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from hackowatt.forecast_model import LAG_NAMES, _recursive_residual_forecast, prepare_training_data
+from hackowatt.forecasting.issue_date import (LAG_NAMES, _recursive_residual_forecast,
+                                               prepare_training_data)
 from hackowatt.issue_date_forecast import selected_model_for_horizon
 
 
