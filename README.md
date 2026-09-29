@@ -25,6 +25,8 @@ python -m unittest discover -s tests -v
 
 A generated example is already available in `results/default`. It contains 17,544 physical hours for local calendar years 2024--2025, including 29 February.
 
+For PyCharm users who prefer a configurable file over command-line options, edit and run `tools/run_issue_date_forecast.py`.
+
 ## House parameters
 
 Edit `config/default.json`. `house.mode = "sample"` draws only fields that have a distribution definition, once for the whole house; the drawn values remain fixed. `house.overrides` always takes priority:

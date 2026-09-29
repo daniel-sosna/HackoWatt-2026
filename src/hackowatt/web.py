@@ -22,9 +22,9 @@ class IssueDateRequest(BaseModel):
     forecast_weather: str | None = None
 
 
-def create_web_app(generated_directory: Path, forecast_directory: Path) -> FastAPI:
+def create_web_app(generated_directory: Path) -> FastAPI:
     """Create a local app that hosts visual assets and calls public use cases."""
-    service = DashboardService(generated_directory, forecast_directory)
+    service = DashboardService(generated_directory)
     latest_result: ForecastResult | None = None
     app = FastAPI(title="HackoWatt Family", docs_url=None, redoc_url=None)
 

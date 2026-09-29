@@ -1,12 +1,12 @@
 """Run one selected forecast from PyCharm without command-line parameters.
 
-Edit the three settings in the marked section, then right-click this file in
+Edit the settings in the marked section, then right-click this file in
 PyCharm and choose Run 'run_issue_date_forecast'.
 """
 from pathlib import Path
 import sys
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
 from hackowatt.issue_date_forecast import (  # noqa: E402

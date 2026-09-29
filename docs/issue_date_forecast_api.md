@@ -62,7 +62,7 @@ clearly different colours. It does not alter `hourly.csv`.
 ## PyCharm one-file runner
 
 For a workflow without command-line parameters, open
-`run_issue_date_forecast.py` at the repository root. Change
+`tools/run_issue_date_forecast.py`. Change
 `FORECAST_START_LOCAL` and `HORIZON_HOURS` in the clearly marked settings
 block, then right-click the file in PyCharm and choose **Run**. It writes the
 same three output files as the command-line adapter.

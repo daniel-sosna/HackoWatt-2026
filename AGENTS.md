@@ -22,7 +22,7 @@ python main.py dashboard
 python main.py issue-date-forecast --forecast-start-local "2025-09-10 00:00:00"
 ```
 
-For non-technical PyCharm use, edit and run `run_issue_date_forecast.py`.
+For non-technical PyCharm use, edit and run `tools/run_issue_date_forecast.py`.
 
 ## Data and scenario rules
 
