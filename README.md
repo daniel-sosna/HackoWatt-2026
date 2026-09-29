@@ -1,6 +1,6 @@
 # HackoWatt Family
 
-A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The scope excludes PV, batteries, grid export, and other electricity generation.
+A local Python project for PyCharm Community Edition. It simulates a four-person family, appliances, direct electric space heating, and a separate electric boiler. Weather, Eurostat time-use data, and calendars are included. The historical household generator contains no PV or battery; the separate Renewable Energy Simulator evaluates rooftop PV against that unchanged demand profile.
 
 ## Quick start
 
@@ -14,13 +14,12 @@ python -m pip install -r requirements.txt
 
 Use `requirements.txt` for normal development and runtime installs. Use `requirements-tested.txt` instead when reproducing the exact dependency versions used by the retained validation checks. On Windows, activate with `.venv\\Scripts\\activate`.
 
-Run `main.py` with the required component. Generation dates come from the weather file and are not set separately. After running `dashboard`, open `results/default/dashboard.html`; no server or internet connection is required.
+Run `main.py` with the required component. Generation dates come from the weather file and are not set separately. `dashboard` starts the unified local web application.
 
 ```bash
 python main.py generate
-python main.py dashboard
 python main.py forecast
-python main.py forecast-dashboard
+python main.py dashboard
 python -m unittest discover -s tests -v
 ```
 
@@ -49,7 +48,7 @@ python main.py dashboard --input results/manual
 
 ## What to inspect in the dashboard
 
-The dashboard provides a date range, appliance and resident filters, monthly totals, hourly activities and occupancy, indoor and tank temperatures, the heating-weather relationship, and an adult Eurostat comparison. Appliance charts can be saved as PNG. Hover displays the exact timestamp with UTC offset and the energy value.
+The Historical profile page restores the detailed interactive dashboard: date range, appliance and resident filters, monthly totals, hourly activities and occupancy, indoor and tank temperatures, the heating-weather relationship, and an adult Eurostat comparison. Appliance charts can be saved as PNG. Hover displays the exact timestamp with UTC offset and the energy value.
 
 Inspect winter underheating, summer overheating because there is no air conditioner, unmet hot-water demand, rejected activities, and differences from Eurostat. Automated checks confirm internal consistency; they do not prove that the profile matches a real meter.
 
@@ -71,7 +70,17 @@ In `hourly.csv`, the `_kwh` suffix means energy for the hour and `_kw` means pow
 
 ## Forecasting
 
-`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. `main.py forecast-dashboard` creates the offline comparison dashboard at `results/forecast/forecast_dashboard.html`. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
+`main.py forecast` trains and compares the two architectures from the supplied coding brief: Modular (`base + behaviour + thermal`) and Direct total load. Both make recursive forecasts for 24 hours, 3 days, and 7 days and are compared with a weekly seasonal-naive baseline. The **Forecast quality** page retains the interactive comparison controls from the original visual dashboard; its renderer only receives forecast artifacts from the service. The detailed method, leakage policy, and deployment inputs are in `docs/forecast_models.md`.
+
+## Renewable Energy Simulator
+
+The **PV planning** page in `python main.py dashboard` restores the richer
+interactive planning interface: scenario comparison, PV-sizing and cash-flow
+views, flexible-load suggestions, forecast exploration, and comfort controls.
+Its HTML/CSS/JavaScript assets are presentation-only; the page receives loaded
+artifacts through `DashboardService` and uses the existing renewable and
+optimisation business logic. The formulas, terminology and limitations are
+documented in `docs/renewable.md`.
 
 ## Sources and time handling
 
@@ -89,6 +98,6 @@ The configuration supplies the random seed. Separate random streams are used for
 
 ## Code structure
 
-`main.py` is the canonical entry point. It invokes a registered component in `src/hackowatt/components/`: `generate`, `dashboard`, `forecast`, or `forecast-dashboard`. The generator remains reusable as the library function in `pipeline.py`; future components can call it or read its `hourly.csv` without modifying simulation code. `inputs.py` validates sources and parameters; `behaviour.py` creates schedules; `devices.py` maps activities to appliances; `thermal.py` solves the house and tank balances. Visualisation is fully local, rendered on Canvas, and has no CDN or telemetry. See `docs/architecture.md` for the complete diagram and a component example.
+`main.py` is the canonical entry point. It invokes three registered command adapters: `generate`, `forecast`, and `dashboard`. Domain code is organised under `src/hackowatt/` by responsibility (`data`, `weather`, `simulation`, `forecasting`, `analysis`, `optimisation`, `renewable`), and services coordinate their explicit data flow. The unified local web dashboard calls services and contains no simulation, forecasting, or PV calculations. Its `POST /api/forecast` endpoint is the explicit boundary for a user-triggered forecast run. There are no compatibility wrappers or alternate dashboard pipelines. See `docs/architecture.md` for the full diagram and extension guidance.
 
 This is a **local Git repository**. Source data, rules, and code are tracked by Git. `results/` and `.venv/` are excluded to avoid large commits, while generated files remain on the computer. No remote repository is configured.

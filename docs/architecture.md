@@ -1,84 +1,84 @@
 # Application structure
 
-`main.py` is the PyCharm entry point. It dispatches named components through
-`hackowatt.app`, so the application does not depend on the historical-data
-generator being its only feature.
+HackoWatt is one local Python application with static JSON and CSV files as its
+only source of household data. `main.py` is the canonical command entry point;
+the local web dashboard is a presentation adapter, not a second pipeline.
 
 ```text
-main.py / python -m hackowatt
-    -> hackowatt.app
-        -> ComponentRegistry
-            -> generate           historical-data component
-            -> dashboard          historical-data dashboard component
-            -> forecast           load-forecast component
-            -> forecast-dashboard forecast-dashboard component
-
-components -> domain implementation
-    historical_data -> pipeline -> inputs, behaviour, devices, thermal
-    load_forecasting -> forecasting
+config/default.json + data/raw/*.csv
+              |
+              v
+data/ + config/ -----> weather/CsvWeatherProvider
+              |                    |
+              +--------------------+
+                                   v
+                  simulation/ (behaviour, devices, thermal, profile)
+                                   |
+                                   v
+                       results/<run>/*.csv
+                         |        |       |
+                         v        v       v
+                   forecasting/ analysis/ renewable/ + optimisation/
+                         \        |       /
+                          \       |      /
+                           services/ (orchestration and view models)
+                                      |
+                                      v
+                  web.py (native HTML + JSON endpoints) and CLI components/
 ```
 
-The generator remains a library function: `hackowatt.pipeline.generate(root,
-config_path, output_path)`. Components call it; they do not duplicate its
-simulation logic. This preserves the existing `hourly.csv` contract for later
-components such as model training, calibration, tariff analysis or API import.
+## Package responsibilities
 
-## Running components
+| Package | Responsibility |
+| --- | --- |
+| `config` | Project paths and configuration conventions. |
+| `data` | JSON/CSV parsing, validation, and repositories for generated/forecast artifacts. |
+| `domain` | Small shared result objects only where they improve the service boundary. |
+| `weather` | Provider contract and the current static CSV provider. |
+| `simulation` | Behaviour, appliances, thermal model, and hourly profile export. |
+| `forecasting` | Leakage-safe features, models, and the rolling-origin experiment. |
+| `analysis` | Downstream peak analysis. |
+| `optimisation` | Conservative flexible-load recommendations; it does not change demand. |
+| `renewable` | PV energy-flow and economic calculations. |
+| `services` | Thin use cases that join data/providers and domain modules. |
+| `components` | CLI argument adapters only. |
+| `presentation` | Dashboard renderers and visual assets, with no business rules. |
+| `web` | Local HTTP adapter: native dashboard views and narrowly-scoped API endpoints. |
 
-From the project root:
+Business packages do not import web/UI packages. The dashboard calls
+`DashboardService`; `POST /api/forecast` calls `run_forecast`; commands call
+`generate_historical` or `run_forecast`.
+This keeps new weather providers, models, analysis, and dashboard views local to
+their own package.
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
-Use `requirements.txt` for supported dependency ranges. Use `requirements-tested.txt` when reproducing the exact versions used by the retained validation checks.
+## Running the application
 
 ```bash
 python main.py generate
-python main.py dashboard
 python main.py forecast
-python main.py forecast-dashboard
+python main.py dashboard
 ```
 
-With editable installation, the same commands use `hackowatt` instead of
-`python main.py`:
+`dashboard` starts a local FastAPI/Uvicorn server and accepts `--input`,
+`--forecast-input`, and an optional `--port`. The dashboard has polished interactive Historical profile,
+Forecast quality, and PV planning views backed by the same generated dataset and
+forecast artifacts. The richer HTML/CSS/JavaScript visualisations live in
+`presentation/assets` and are pure renderers: services supply DataFrames and
+small view models, while the browser only hosts the rendered interface.
 
-```bash
-pip install -e .
-hackowatt generate --config config/manual_example.json --output results/manual
-```
+Standalone dashboard commands and compatibility facades have been removed. The
+retained visual assets are embedded by the unified dashboard rather than forming
+another pipeline. New features must target the packages above and the unified
+dashboard.
 
-When invoking the installed command outside the repository, provide the root
-before the component name: `hackowatt --project-root C:\path\to\HackoWatt_Family generate`.
+## Extending a capability
 
-`generate.py`, `visualize.py` and `forecast.py` remain compatibility wrappers
-for existing PyCharm run configurations.
+1. Put new business logic in its owning package, with no web/UI dependency.
+2. Add/extend a small service if the feature joins multiple packages or files.
+3. Add one UI view/control or one CLI component that invokes the service.
+4. Add a focused contract/model test only when business logic changed.
 
-## Adding a component
-
-Create a module under `src/hackowatt/components/`. A component declares a
-unique command name, adds its own command-line arguments, and receives a
-`ProjectContext` with a stable project root.
-
-```python
-class TariffAnalysisComponent:
-    name = "tariff-analysis"
-    help = "Estimate electricity cost from hourly data."
-
-    def add_arguments(self, subparsers):
-        parser = subparsers.add_parser(self.name, help=self.help)
-        parser.add_argument("--input", default="results/default/hourly.csv")
-        parser.set_defaults(component=self)
-
-    def run(self, args, context):
-        hourly_path = context.path(args.input)
-        # Read the existing generated data and write this component's outputs.
-        return 0
-```
-
-Register an instance once in `built_in_registry()` in
-`src/hackowatt/components/__init__.py`. The main parser discovers it
-automatically. Keep simulation/domain code in dedicated modules and put only
-argument handling and orchestration in the component.
+For example, a real weather provider implements `WeatherProvider`; the
+generation service can receive it without changing the simulation. A new
+forecast model belongs in `forecasting` and keeps the existing output contract
+so analysis and the dashboard continue to work.

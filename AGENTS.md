@@ -20,12 +20,11 @@ Use the application entry point for routine work:
 
 ```bash
 python main.py generate
-python main.py dashboard
 python main.py forecast
-python main.py forecast-dashboard
+python main.py dashboard
 ```
 
-`main.py` delegates to components in `src/hackowatt/components/`. Put a new user-facing capability in a component and register it in the application; do not add business logic to a legacy root wrapper. The generator is reusable from Python as `hackowatt.pipeline.generate(...)`.
+`main.py` delegates to thin components in `src/hackowatt/components/`. Put a new user-facing capability in the owning domain package, add a thin orchestration service when it crosses boundaries, then register its CLI adapter only if a command is needed. The historical generator is reusable as `hackowatt.services.generate_historical(...)`.
 
 ## Data and scenario rules
 
