@@ -48,9 +48,10 @@ The project can create a compatible forecast CSV directly with
 `python main.py fetch-weather --days 7 --output results/weather_forecast.csv`.
 The resulting offset-aware Polish-local `time` values and weather headers are
 accepted by `load_forecast_weather`, including both physical hours when the
-autumn clock change repeats 02:00. Pass that path with `--forecast-weather` to
-`forecast`. This fetch command obtains future weather only and does not alter
-the historical weather CSV.
+autumn clock change repeats 02:00. It excludes hourly values before retrieval
+and records the UTC retrieval time in `issue_time_utc`. Pass that path with
+`--forecast-weather` to `forecast`. This fetch command obtains future weather
+only and does not alter the historical weather CSV.
 
 ## Command-line use
 

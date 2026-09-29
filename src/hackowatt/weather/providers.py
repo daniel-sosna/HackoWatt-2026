@@ -86,6 +86,14 @@ class OpenMeteoForecastProvider:
             if (frame[name] < 0).any():
                 raise ValueError(f"Negative {name} in weather forecast")
 
+        issued_at = pd.Timestamp(issue_time_utc)
+        if issued_at.tzinfo is None:
+            raise ValueError("issue_time_utc must include a timezone")
+        first_forecast_hour = issued_at.ceil("h")
+        forecast_times = pd.DatetimeIndex(pd.to_datetime(frame["time"], utc=True))
+        frame = frame.loc[forecast_times >= first_forecast_hour].reset_index(drop=True)
+        if frame.empty:
+            raise ValueError("Open-Meteo response contains no future hourly forecast values")
         frame["issue_time_utc"] = issue_time_utc
         return frame
 

@@ -84,6 +84,21 @@ class OpenMeteoForecastTests(unittest.TestCase):
             OpenMeteoForecastProvider.parse_response(
                 payload, "2026-09-29T07:00:00+00:00")
 
+    def test_response_drops_hours_before_retrieval(self):
+        payload = {"hourly": {
+            "time": ["2026-09-29T07:00", "2026-09-29T08:00"],
+            "temperature_2m": [12.0, 13.0],
+            "relative_humidity_2m": [70, 65],
+            "wind_speed_10m": [10, 12],
+            "cloud_cover": [80, 60],
+            "snowfall": [0, 0],
+            "shortwave_radiation": [100, 200],
+        }}
+        result = OpenMeteoForecastProvider.parse_response(
+            payload, "2026-09-29T07:30:00+00:00")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.loc[0, "time"], "2026-09-29 10:00:00+02:00")
+
     def test_forecast_length_is_bounded(self):
         for days in (0, 17):
             with self.subTest(days=days), self.assertRaises(ValueError):

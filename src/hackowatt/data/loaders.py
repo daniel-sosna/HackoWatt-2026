@@ -186,6 +186,15 @@ def load_forecast_weather(path: Path) -> pd.DataFrame:
     index = labels if offset_aware else labels.tz_localize("Europe/Warsaw").tz_convert("UTC")
     if len(index) > 1 and not (index[1:] - index[:-1] == pd.Timedelta(hours=1)).all():
         raise ValueError("Forecast weather must contain continuous hourly timestamps")
+    if "issue_time_utc" in raw:
+        issue_values = raw["issue_time_utc"].dropna().astype(str).unique()
+        if len(issue_values) != 1:
+            raise ValueError("Forecast weather must have one consistent issue_time_utc")
+        issue_time = pd.Timestamp(issue_values[0])
+        if issue_time.tzinfo is None:
+            raise ValueError("issue_time_utc must include a timezone")
+        if (index < issue_time.ceil("h")).any():
+            raise ValueError("Forecast weather contains hours before its issue time")
 
     values = raw[list(FORECAST_WEATHER_COLUMNS)].rename(columns=FORECAST_WEATHER_COLUMNS).copy()
     values["precipitation"] = 0.0
